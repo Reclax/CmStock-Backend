@@ -1,0 +1,24 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Dependencias de desarrollo (ej. nodemon)
+*.log
+
+# Archivos del entorno (si usas dotenv, como .env)
+.env
+
+# Sistema de caché
+.DS_Store
+
+# Directorios de test y cobertura de código
+coverage/
+
+# Carpeta de build (si usas algún bundler)
+dist/
+build/
+
+# Archivos de configuración específicos de editor
+.vscode/
+.idea/
