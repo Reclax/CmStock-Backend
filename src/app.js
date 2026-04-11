@@ -3,7 +3,9 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { connectDb } from "./config/database.js";
 import { syncModels } from "./models/index.js";
+import movimientoInventarioRoutes from "./routes/movimiento-inventario.routes.js";
 import muestraRoutes from "./routes/muestra.routes.js";
+import produccionRoutes from "./routes/produccion.routes.js";
 
 dotenv.config();
 
@@ -14,6 +16,8 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api/muestras", muestraRoutes);
+app.use("/api/producciones", produccionRoutes);
+app.use("/api/movimientos-inventario", movimientoInventarioRoutes);
 
 app.get("/", (req, res) => {
   res.send("API CM Stock funcionando");
