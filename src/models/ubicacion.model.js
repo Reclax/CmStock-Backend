@@ -9,6 +9,18 @@ export const defineUbicacionModel = (sequelize) => {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
       },
+      nombre: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+      tipo: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+      descripcion: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
     },
     {
       tableName: "ubicaciones",

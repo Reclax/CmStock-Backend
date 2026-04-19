@@ -1,42 +1,40 @@
 import { DataTypes } from "sequelize";
 
-export const defineMolderiaModel = (sequelize) => {
+export const defineFotoModel = (sequelize) => {
   return sequelize.define(
-    "Molderia",
+    "Foto",
     {
       id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
       },
-      nombre: {
+      muestraid: {
+        type: DataTypes.UUID,
+        allowNull: false,
+      },
+      urlarchivo: {
         type: DataTypes.STRING,
         allowNull: false,
       },
-      tipohorma: {
+      origen: {
         type: DataTypes.STRING,
         allowNull: false,
       },
-      talon: {
-        type: DataTypes.STRING,
+      fechacarga: {
+        type: DataTypes.DATEONLY,
         allowNull: false,
       },
-      punta: {
-        type: DataTypes.STRING,
+      usuarioid: {
+        type: DataTypes.UUID,
         allowNull: false,
-      },
-      esnueva: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-      },
-      marca: {
-        type: DataTypes.STRING,
-        allowNull: true,
       },
     },
     {
-      tableName: "molderias",
-      timestamps: false,
+      tableName: "fotos",
+      timestamps: true,
+      createdAt: "createdat",
+      updatedAt: "updatedat",
     }
   );
 };

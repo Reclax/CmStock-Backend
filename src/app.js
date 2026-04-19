@@ -4,8 +4,15 @@ import dotenv from "dotenv";
 import { connectDb } from "./config/database.js";
 import { syncModels } from "./models/index.js";
 import movimientoInventarioRoutes from "./routes/movimiento-inventario.routes.js";
+import clienteRoutes from "./routes/cliente.routes.js";
+import fotoRoutes from "./routes/foto.routes.js";
+import molderiaRoutes from "./routes/molderia.routes.js";
+import ubicacionRoutes from "./routes/ubicacion.routes.js";
 import muestraRoutes from "./routes/muestra.routes.js";
+import presentacionRoutes from "./routes/presentacion.routes.js";
+import trazabilidadRoutes from "./routes/trazabilidad.routes.js";
 import produccionRoutes from "./routes/produccion.routes.js";
+import usuarioRoutes from "./routes/usuario.routes.js";
 
 dotenv.config();
 
@@ -16,8 +23,15 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api/muestras", muestraRoutes);
+app.use("/api/clientes", clienteRoutes);
+app.use("/api/usuarios", usuarioRoutes);
+app.use("/api/molderias", molderiaRoutes);
+app.use("/api/ubicaciones", ubicacionRoutes);
+app.use("/api/fotos", fotoRoutes);
+app.use("/api/trazabilidades", trazabilidadRoutes);
 app.use("/api/producciones", produccionRoutes);
 app.use("/api/movimientos-inventario", movimientoInventarioRoutes);
+app.use("/api/presentaciones", presentacionRoutes);
 
 app.get("/", (req, res) => {
   res.send("API CM Stock funcionando");

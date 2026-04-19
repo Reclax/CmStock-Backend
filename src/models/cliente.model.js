@@ -9,6 +9,14 @@ export const defineClienteModel = (sequelize) => {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
       },
+      nombre: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+      region: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
     },
     {
       tableName: "clientes",
