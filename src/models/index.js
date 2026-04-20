@@ -2,16 +2,16 @@ import { DataTypes } from "sequelize";
 import { sequelize } from "../config/database.js";
 import { defineClienteModel } from "./cliente.model.js";
 import { defineDisenadorModel } from "./disenador.model.js";
-import { defineMolderiaModel } from "./molderia.model.js";
-import { defineModeladorModel } from "./modelador.model.js";
 import { defineFotoModel } from "./foto.model.js";
+import { defineModeladorModel } from "./modelador.model.js";
+import { defineMolderiaModel } from "./molderia.model.js";
 import { defineMovimientoInventarioModel } from "./movimiento-inventario.model.js";
 import { defineMuestraModel } from "./muestra.model.js";
 import { definePresentacionModel } from "./presentacion.model.js";
-import { defineTrazabilidadModel } from "./trazabilidad.model.js";
 import { defineProduccionModel } from "./produccion.model.js";
-import { defineUsuarioModel } from "./usuario.model.js";
+import { defineTrazabilidadModel } from "./trazabilidad.model.js";
 import { defineUbicacionModel } from "./ubicacion.model.js";
+import { defineUsuarioModel } from "./usuario.model.js";
 
 export const Cliente = defineClienteModel(sequelize);
 export const Disenador = defineDisenadorModel(sequelize);
@@ -26,7 +26,12 @@ export const Presentacion = definePresentacionModel(sequelize);
 export const Foto = defineFotoModel(sequelize);
 export const Trazabilidad = defineTrazabilidadModel(sequelize);
 
-const ensureColumnExists = async (queryInterface, tableName, columnName, definition) => {
+const ensureColumnExists = async (
+  queryInterface,
+  tableName,
+  columnName,
+  definition,
+) => {
   const tableDescription = await queryInterface.describeTable(tableName);
   if (!tableDescription[columnName]) {
     await queryInterface.addColumn(tableName, columnName, {
@@ -39,18 +44,42 @@ const ensureColumnExists = async (queryInterface, tableName, columnName, definit
 const migrateLegacyCatalogData = async () => {
   const queryInterface = sequelize.getQueryInterface();
 
-  await ensureColumnExists(queryInterface, "clientes", "nombre", { type: DataTypes.STRING });
-  await ensureColumnExists(queryInterface, "usuarios", "nombre", { type: DataTypes.STRING });
-  await ensureColumnExists(queryInterface, "usuarios", "email", { type: DataTypes.STRING });
-  await ensureColumnExists(queryInterface, "usuarios", "rol", { type: DataTypes.STRING });
-  await ensureColumnExists(queryInterface, "usuarios", "activo", { type: DataTypes.BOOLEAN });
-  await ensureColumnExists(queryInterface, "molderias", "nombre", { type: DataTypes.STRING });
-  await ensureColumnExists(queryInterface, "molderias", "tipohorma", { type: DataTypes.STRING });
-  await ensureColumnExists(queryInterface, "molderias", "talon", { type: DataTypes.STRING });
-  await ensureColumnExists(queryInterface, "molderias", "punta", { type: DataTypes.STRING });
-  await ensureColumnExists(queryInterface, "molderias", "esnueva", { type: DataTypes.BOOLEAN });
-  await ensureColumnExists(queryInterface, "ubicaciones", "nombre", { type: DataTypes.STRING });
-  await ensureColumnExists(queryInterface, "ubicaciones", "tipo", { type: DataTypes.STRING });
+  await ensureColumnExists(queryInterface, "clientes", "nombre", {
+    type: DataTypes.STRING,
+  });
+  await ensureColumnExists(queryInterface, "usuarios", "nombre", {
+    type: DataTypes.STRING,
+  });
+  await ensureColumnExists(queryInterface, "usuarios", "email", {
+    type: DataTypes.STRING,
+  });
+  await ensureColumnExists(queryInterface, "usuarios", "rol", {
+    type: DataTypes.STRING,
+  });
+  await ensureColumnExists(queryInterface, "usuarios", "activo", {
+    type: DataTypes.BOOLEAN,
+  });
+  await ensureColumnExists(queryInterface, "molderias", "nombre", {
+    type: DataTypes.STRING,
+  });
+  await ensureColumnExists(queryInterface, "molderias", "tipohorma", {
+    type: DataTypes.STRING,
+  });
+  await ensureColumnExists(queryInterface, "molderias", "talon", {
+    type: DataTypes.STRING,
+  });
+  await ensureColumnExists(queryInterface, "molderias", "punta", {
+    type: DataTypes.STRING,
+  });
+  await ensureColumnExists(queryInterface, "molderias", "esnueva", {
+    type: DataTypes.BOOLEAN,
+  });
+  await ensureColumnExists(queryInterface, "ubicaciones", "nombre", {
+    type: DataTypes.STRING,
+  });
+  await ensureColumnExists(queryInterface, "ubicaciones", "tipo", {
+    type: DataTypes.STRING,
+  });
 
   await sequelize.query(`
     UPDATE clientes
@@ -107,8 +136,14 @@ Presentacion.belongsTo(Cliente, { foreignKey: "clienteid", as: "cliente" });
 Foto.belongsTo(Muestra, { foreignKey: "muestraid", as: "muestra" });
 Foto.belongsTo(Usuario, { foreignKey: "usuarioid", as: "usuario" });
 Trazabilidad.belongsTo(Muestra, { foreignKey: "muestraid", as: "muestra" });
-Trazabilidad.belongsTo(Disenador, { foreignKey: "disenadorid", as: "disenador" });
-Trazabilidad.belongsTo(Modelador, { foreignKey: "modeladorid", as: "modelador" });
+Trazabilidad.belongsTo(Disenador, {
+  foreignKey: "disenadorid",
+  as: "disenador",
+});
+Trazabilidad.belongsTo(Modelador, {
+  foreignKey: "modeladorid",
+  as: "modelador",
+});
 
 Cliente.hasMany(Muestra, { foreignKey: "clienteid", as: "muestras" });
 Disenador.hasMany(Muestra, { foreignKey: "disenadorid", as: "muestras" });
@@ -124,15 +159,30 @@ Usuario.hasMany(MovimientoInventario, {
   foreignKey: "usuarioid",
   as: "movimientosInventario",
 });
-Muestra.hasMany(Presentacion, { foreignKey: "muestraid", as: "presentaciones" });
-Cliente.hasMany(Presentacion, { foreignKey: "clienteid", as: "presentaciones" });
+Muestra.hasMany(Presentacion, {
+  foreignKey: "muestraid",
+  as: "presentaciones",
+});
+Cliente.hasMany(Presentacion, {
+  foreignKey: "clienteid",
+  as: "presentaciones",
+});
 Muestra.hasMany(Foto, { foreignKey: "muestraid", as: "fotos" });
 Usuario.hasMany(Foto, { foreignKey: "usuarioid", as: "fotos" });
-Muestra.hasMany(Trazabilidad, { foreignKey: "muestraid", as: "trazabilidades" });
-Disenador.hasMany(Trazabilidad, { foreignKey: "disenadorid", as: "trazabilidades" });
-Modelador.hasMany(Trazabilidad, { foreignKey: "modeladorid", as: "trazabilidades" });
+Muestra.hasMany(Trazabilidad, {
+  foreignKey: "muestraid",
+  as: "trazabilidades",
+});
+Disenador.hasMany(Trazabilidad, {
+  foreignKey: "disenadorid",
+  as: "trazabilidades",
+});
+Modelador.hasMany(Trazabilidad, {
+  foreignKey: "modeladorid",
+  as: "trazabilidades",
+});
 
 export const syncModels = async () => {
-  await migrateLegacyCatalogData();
   await sequelize.sync({ alter: true });
+  await migrateLegacyCatalogData();
 };
