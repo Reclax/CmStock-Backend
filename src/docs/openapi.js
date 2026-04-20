@@ -93,6 +93,63 @@ const paginatedSchema = (schemaRef) => ({
   additionalProperties: false,
 });
 
+const authSchemas = {
+  Register: {
+    type: "object",
+    properties: {
+      nombre: { type: "string", minLength: 3 },
+      email: { type: "string", format: "email" },
+      password: { type: "string", minLength: 6 },
+      rol: {
+        type: "string",
+        enum: ["admin", "diseñador", "modelador", "usuario", "gerente"],
+        default: "usuario",
+      },
+    },
+    required: ["nombre", "email", "password"],
+    additionalProperties: false,
+  },
+  Login: {
+    type: "object",
+    properties: {
+      email: { type: "string", format: "email" },
+      password: { type: "string" },
+    },
+    required: ["email", "password"],
+    additionalProperties: false,
+  },
+  ChangePassword: {
+    type: "object",
+    properties: {
+      oldPassword: { type: "string" },
+      newPassword: { type: "string", minLength: 6 },
+    },
+    required: ["oldPassword", "newPassword"],
+    additionalProperties: false,
+  },
+  Usuario: {
+    type: "object",
+    properties: {
+      id: { type: "string", format: "uuid" },
+      nombre: { type: "string" },
+      email: { type: "string", format: "email" },
+      rol: { type: "string" },
+    },
+    required: ["id", "nombre", "email", "rol"],
+    additionalProperties: false,
+  },
+  LoginResponse: {
+    type: "object",
+    properties: {
+      message: { type: "string" },
+      token: { type: "string" },
+      usuario: { $ref: "#/components/schemas/Usuario" },
+    },
+    required: ["message", "token", "usuario"],
+    additionalProperties: false,
+  },
+};
+
 const resourceSpecs = [
   {
     name: "Cliente",
@@ -446,7 +503,9 @@ const buildPathObject = (spec) => {
 };
 
 export const buildOpenApiDocument = ({ serverUrl }) => {
-  const componentSchemas = {};
+  const componentSchemas = {
+    ...authSchemas,
+  };
   const paths = {};
 
   for (const spec of resourceSpecs) {
@@ -462,6 +521,145 @@ export const buildOpenApiDocument = ({ serverUrl }) => {
 
     Object.assign(paths, buildPathObject(spec));
   }
+
+  // Agregar endpoints de autenticación
+  const authPaths = {
+    "/api/auth/register": {
+      post: {
+        tags: ["Autenticación"],
+        summary: "Registrar un nuevo usuario",
+        description: "Crear una nueva cuenta de usuario",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/Register" },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: "Usuario registrado exitosamente",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    message: { type: "string" },
+                    usuario: { $ref: "#/components/schemas/Usuario" },
+                  },
+                  required: ["message", "usuario"],
+                },
+              },
+            },
+          },
+          400: { $ref: "#/components/responses/BadRequest" },
+          409: {
+            description: "El usuario ya existe",
+            content: {
+              "application/json": {
+                schema: errorSchema,
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/auth/login": {
+      post: {
+        tags: ["Autenticación"],
+        summary: "Iniciar sesión",
+        description: "Autenticar usuario y obtener token JWT",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/Login" },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "Login exitoso",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/LoginResponse" },
+              },
+            },
+          },
+          400: { $ref: "#/components/responses/BadRequest" },
+          401: {
+            description: "Credenciales inválidas",
+            content: {
+              "application/json": {
+                schema: errorSchema,
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/auth/me": {
+      get: {
+        tags: ["Autenticación"],
+        summary: "Obtener usuario actual",
+        description: "Retorna los datos del usuario autenticado",
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: {
+            description: "Datos del usuario",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Usuario" },
+              },
+            },
+          },
+          401: {
+            description: "No autenticado o token inválido",
+            content: {
+              "application/json": {
+                schema: errorSchema,
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/auth/change-password": {
+      post: {
+        tags: ["Autenticación"],
+        summary: "Cambiar contraseña",
+        description: "Cambiar la contraseña del usuario autenticado",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ChangePassword" },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "Contraseña actualizada exitosamente",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    message: { type: "string" },
+                  },
+                  required: ["message"],
+                },
+              },
+            },
+          },
+          400: { $ref: "#/components/responses/BadRequest" },
+          401: { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
+    },
+  };
 
   const finalPaths = {
     "/": {
@@ -480,6 +678,7 @@ export const buildOpenApiDocument = ({ serverUrl }) => {
         },
       },
     },
+    ...authPaths,
     ...paths,
   };
 
@@ -493,9 +692,18 @@ export const buildOpenApiDocument = ({ serverUrl }) => {
     servers: [{ url: serverUrl }],
     tags: [
       { name: "API" },
+      { name: "Autenticación", description: "Endpoints para autenticación y gestión de sesiones" },
       ...resourceSpecs.map((spec) => ({ name: spec.tag })),
     ],
     components: {
+      securitySchemes: {
+        BearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+          description: "Token JWT obtenido en el login",
+        },
+      },
       parameters: commonParameters,
       responses: {
         BadRequest: {
@@ -514,6 +722,14 @@ export const buildOpenApiDocument = ({ serverUrl }) => {
             },
           },
         },
+        Unauthorized: {
+          description: "No autenticado",
+          content: {
+            "application/json": {
+              schema: errorSchema,
+            },
+          },
+        },
         Conflict: {
           description: "Conflicto con el estado actual del recurso",
           content: {
@@ -526,5 +742,6 @@ export const buildOpenApiDocument = ({ serverUrl }) => {
       schemas: componentSchemas,
     },
     paths: finalPaths,
+    security: [{ BearerAuth: [] }],
   };
 };

@@ -4,6 +4,8 @@ import express from "express";
 import { connectDb } from "./config/database.js";
 import { buildOpenApiDocument } from "./docs/openapi.js";
 import { syncModels } from "./models/index.js";
+import { authenticate } from "./middleware/auth.middleware.js";
+import authRoutes from "./routes/auth.routes.js";
 import clienteRoutes from "./routes/cliente.routes.js";
 import fotoRoutes from "./routes/foto.routes.js";
 import molderiaRoutes from "./routes/molderia.routes.js";
@@ -19,23 +21,36 @@ dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
+
+// Configuración de CORS
+const corsOptions = {
+  origin: ["http://localhost:3000", "http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:3001"],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
 const swaggerDocument = buildOpenApiDocument({
   serverUrl: process.env.SWAGGER_SERVER_URL || `http://localhost:${PORT}`,
 });
 
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
-app.use("/api/muestras", muestraRoutes);
-app.use("/api/clientes", clienteRoutes);
-app.use("/api/usuarios", usuarioRoutes);
-app.use("/api/molderias", molderiaRoutes);
-app.use("/api/ubicaciones", ubicacionRoutes);
-app.use("/api/fotos", fotoRoutes);
-app.use("/api/trazabilidades", trazabilidadRoutes);
-app.use("/api/producciones", produccionRoutes);
-app.use("/api/movimientos-inventario", movimientoInventarioRoutes);
-app.use("/api/presentaciones", presentacionRoutes);
+// Rutas públicas (sin autenticación)
+app.use("/api/auth", authRoutes);
+
+// Rutas protegidas (requieren autenticación)
+app.use("/api/muestras", authenticate, muestraRoutes);
+app.use("/api/clientes", authenticate, clienteRoutes);
+app.use("/api/usuarios", authenticate, usuarioRoutes);
+app.use("/api/molderias", authenticate, molderiaRoutes);
+app.use("/api/ubicaciones", authenticate, ubicacionRoutes);
+app.use("/api/fotos", authenticate, fotoRoutes);
+app.use("/api/trazabilidades", authenticate, trazabilidadRoutes);
+app.use("/api/producciones", authenticate, produccionRoutes);
+app.use("/api/movimientos-inventario", authenticate, movimientoInventarioRoutes);
+app.use("/api/presentaciones", authenticate, presentacionRoutes);
 
 app.get("/api-docs.json", (req, res) => {
   res.json(swaggerDocument);
@@ -86,7 +101,7 @@ const startServer = async () => {
       console.log(`Servidor corriendo en puerto ${PORT}`);
     });
   } catch (error) {
-    console.error("No fue posible iniciar la API:", error.message);
+    console.error("No fue posible iniciar la API:", error);
     process.exit(1);
   }
 };

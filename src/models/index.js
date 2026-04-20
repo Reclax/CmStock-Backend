@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import { DataTypes } from "sequelize";
 import { sequelize } from "../config/database.js";
 import { defineClienteModel } from "./cliente.model.js";
@@ -59,6 +60,9 @@ const migrateLegacyCatalogData = async () => {
   await ensureColumnExists(queryInterface, "usuarios", "activo", {
     type: DataTypes.BOOLEAN,
   });
+  await ensureColumnExists(queryInterface, "usuarios", "password", {
+    type: DataTypes.STRING,
+  });
   await ensureColumnExists(queryInterface, "molderias", "nombre", {
     type: DataTypes.STRING,
   });
@@ -93,8 +97,9 @@ const migrateLegacyCatalogData = async () => {
       nombre = COALESCE(nombre, 'Usuario ' || id::text),
       email = COALESCE(email, 'user-' || replace(id::text, '-', '') || '@legacy.local'),
       rol = COALESCE(rol, 'disenador'),
-      activo = COALESCE(activo, true)
-    WHERE nombre IS NULL OR email IS NULL OR rol IS NULL OR activo IS NULL
+      activo = COALESCE(activo, true),
+      password = COALESCE(password, '$2a$10$YIjlrBxTXHKXNe1v5j1gTOFKi6.qMU9fKMxvHXnqC7rPQZfBXXxwq')
+    WHERE nombre IS NULL OR email IS NULL OR rol IS NULL OR activo IS NULL OR password IS NULL
   `);
 
   await sequelize.query(`
@@ -182,7 +187,72 @@ Modelador.hasMany(Trazabilidad, {
   as: "trazabilidades",
 });
 
+const seedDefaultUsers = async () => {
+  try {
+    // Verificar si ya existe el admin
+    const adminExists = await Usuario.findOne({
+      where: { email: "admin@cmstock.com" },
+    });
+
+    if (!adminExists) {
+      // Crear usuario admin por defecto
+      const hashedPassword = await bcrypt.hash("admin123", 10);
+
+      await Usuario.create({
+        nombre: "Administrador",
+        email: "admin@cmstock.com",
+        password: hashedPassword,
+        rol: "admin",
+        activo: true,
+      });
+
+      console.log("✅ Usuario administrador creado: admin@cmstock.com / admin123");
+    }
+
+    // Crear otros usuarios de ejemplo si no existen
+    const users = [
+      {
+        nombre: "Diseñador",
+        email: "diseñador@cmstock.com",
+        password: "diseño123",
+        rol: "diseñador",
+      },
+      {
+        nombre: "Modelador",
+        email: "modelador@cmstock.com",
+        password: "modelo123",
+        rol: "modelador",
+      },
+      {
+        nombre: "Gerente",
+        email: "gerente@cmstock.com",
+        password: "gerente123",
+        rol: "gerente",
+      },
+    ];
+
+    for (const userData of users) {
+      const userExists = await Usuario.findOne({
+        where: { email: userData.email },
+      });
+
+      if (!userExists) {
+        const hashedPassword = await bcrypt.hash(userData.password, 10);
+        await Usuario.create({
+          ...userData,
+          password: hashedPassword,
+          activo: true,
+        });
+        console.log(`✅ Usuario creado: ${userData.email} / ${userData.password}`);
+      }
+    }
+  } catch (error) {
+    console.error("Error al crear usuarios por defecto:", error.message);
+  }
+};
+
 export const syncModels = async () => {
   await sequelize.sync({ alter: true });
   await migrateLegacyCatalogData();
+  await seedDefaultUsers();
 };

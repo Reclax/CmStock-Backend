@@ -18,18 +18,29 @@ export const defineUsuarioModel = (sequelize) => {
         allowNull: false,
         unique: true,
       },
+      password: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
       rol: {
         type: DataTypes.STRING,
         allowNull: false,
+        defaultValue: "usuario",
+        validate: {
+          isIn: [["admin", "diseñador", "modelador", "usuario", "gerente"]],
+        },
       },
       activo: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
+        defaultValue: true,
       },
     },
     {
       tableName: "usuarios",
-      timestamps: false,
+      timestamps: true,
+      createdAt: "createdat",
+      updatedAt: "updatedat",
     }
   );
 };
