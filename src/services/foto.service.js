@@ -28,6 +28,9 @@ export class FotoService {
   }
 
   async create(payload) {
+    if (!payload.fechacarga) {
+      payload.fechacarga = new Date().toISOString().slice(0, 10);
+    }
     this.validateRequiredFields(payload);
     payload.origen = this.validateOrigen(payload.origen);
     await this.validateMuestraExists(payload.muestraid);

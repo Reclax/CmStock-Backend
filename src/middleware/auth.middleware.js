@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { tokenBlacklistService } from "../services/token-blacklist.service.js";
 
 // Middleware para autenticación - Valida JWT
 export const authenticate = (req, res, next) => {
@@ -10,6 +11,10 @@ export const authenticate = (req, res, next) => {
     }
 
     const token = authHeader.slice(7);
+
+    if (tokenBlacklistService.isRevoked(token)) {
+      return res.status(401).json({ message: "Token revocado" });
+    }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;

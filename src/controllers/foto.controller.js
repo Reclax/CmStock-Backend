@@ -38,6 +38,27 @@ export const createFoto = async (req, res) => {
   }
 };
 
+export const uploadFotoArchivo = async (req, res) => {
+  try {
+    if (!req.file) {
+      throw new HttpError(400, "Archivo de imagen requerido");
+    }
+
+    const payload = {
+      muestraid: req.body?.muestraid,
+      origen: req.body?.origen || "archivo",
+      urlarchivo: `/uploads/${req.file.filename}`,
+      fechacarga: req.body?.fechacarga,
+      usuarioid: req.user.id,
+    };
+
+    const data = await service.create(payload);
+    return res.status(201).json(data);
+  } catch (error) {
+    return handleError(res, error);
+  }
+};
+
 export const updateFoto = async (req, res) => {
   try {
     const data = await service.update(req.params.id, req.body);

@@ -1,6 +1,8 @@
 import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 import jwt from "jsonwebtoken";
 import { Usuario } from "../models/index.js";
+import { tokenBlacklistService } from "./token-blacklist.service.js";
 
 export class HttpError extends Error {
   constructor(message, status) {
@@ -60,6 +62,7 @@ export class AuthService {
         id: usuario.id,
         email: usuario.email,
         rol: usuario.rol,
+        jti: randomUUID(),
       },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRATION || "24h" }
@@ -74,6 +77,16 @@ export class AuthService {
         rol: usuario.rol,
       },
     };
+  }
+
+  async logout(token) {
+    if (!token) {
+      throw new HttpError("Token no proporcionado", 400);
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    tokenBlacklistService.revoke(token, decoded.exp);
+    return { message: "Sesion cerrada exitosamente" };
   }
 
   async validateToken(token) {

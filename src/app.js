@@ -13,6 +13,7 @@ import movimientoInventarioRoutes from "./routes/movimiento-inventario.routes.js
 import muestraRoutes from "./routes/muestra.routes.js";
 import presentacionRoutes from "./routes/presentacion.routes.js";
 import produccionRoutes from "./routes/produccion.routes.js";
+import reporteRoutes from "./routes/reporte.routes.js";
 import trazabilidadRoutes from "./routes/trazabilidad.routes.js";
 import ubicacionRoutes from "./routes/ubicacion.routes.js";
 import usuarioRoutes from "./routes/usuario.routes.js";
@@ -36,6 +37,7 @@ const swaggerDocument = buildOpenApiDocument({
 
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use("/uploads", express.static("uploads"));
 
 // Rutas públicas (sin autenticación)
 app.use("/api/auth", authRoutes);
@@ -51,6 +53,7 @@ app.use("/api/trazabilidades", authenticate, trazabilidadRoutes);
 app.use("/api/producciones", authenticate, produccionRoutes);
 app.use("/api/movimientos-inventario", authenticate, movimientoInventarioRoutes);
 app.use("/api/presentaciones", authenticate, presentacionRoutes);
+app.use("/api/reportes", authenticate, reporteRoutes);
 
 app.get("/api-docs.json", (req, res) => {
   res.json(swaggerDocument);
