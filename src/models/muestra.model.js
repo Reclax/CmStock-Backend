@@ -53,6 +53,16 @@ export const defineMuestraModel = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      codigoqr: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        unique: true,
+      },
+      codigobarras: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        unique: true,
+      },
       clienteid: {
         type: DataTypes.UUID,
         allowNull: false,

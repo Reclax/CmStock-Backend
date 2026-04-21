@@ -84,6 +84,12 @@ const migrateLegacyCatalogData = async () => {
   await ensureColumnExists(queryInterface, "ubicaciones", "tipo", {
     type: DataTypes.STRING,
   });
+  await ensureColumnExists(queryInterface, "muestras", "codigoqr", {
+    type: DataTypes.STRING,
+  });
+  await ensureColumnExists(queryInterface, "muestras", "codigobarras", {
+    type: DataTypes.STRING,
+  });
 
   await sequelize.query(`
     UPDATE clientes

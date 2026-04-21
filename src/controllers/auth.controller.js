@@ -103,3 +103,18 @@ export const changePassword = async (req, res) => {
     return handleError(res, error);
   }
 };
+
+export const logout = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      throw new HttpError("Token no proporcionado", 400);
+    }
+
+    const token = authHeader.slice(7);
+    const result = await authService.logout(token);
+    return res.status(200).json(result);
+  } catch (error) {
+    return handleError(res, error);
+  }
+};

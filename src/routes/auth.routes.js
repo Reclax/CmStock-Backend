@@ -4,6 +4,7 @@ import {
   login,
   getCurrentUser,
   changePassword,
+  logout,
 } from "../controllers/auth.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 
@@ -16,5 +17,6 @@ router.post("/login", login);
 // Rutas protegidas
 router.get("/me", authenticate, getCurrentUser);
 router.post("/change-password", authenticate, changePassword);
+router.post("/logout", authenticate, logout);
 
 export default router;
