@@ -1,5 +1,6 @@
 import bwipjs from "bwip-js";
 import QRCode from "qrcode";
+import { Op } from "sequelize";
 import XLSX from "xlsx";
 import {
   Cliente,
@@ -70,6 +71,11 @@ export class MuestraService {
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index];
       try {
+        const clienteid = await this.resolveClienteId(row);
+        const disenadorid = await this.resolveDisenadorId(row);
+        const molderiaid = await this.resolveMolderiaId(row);
+        const ubicacionid = await this.resolveUbicacionId(row);
+
         const payload = {
           referencia: String(row.REF || row.REFERENCIA || row.referencia || "").trim(),
           modelo: String(row.MODELO || row.modelo || "").trim(),
@@ -82,10 +88,10 @@ export class MuestraService {
           estado: this.validateEstado(String(row.APROBACION || row.ESTADO || row.estado || "nueva").trim()),
           proceso: row.PROCESO ? String(row.PROCESO) : null,
           observaciones: row.OBSERVACIONES ? String(row.OBSERVACIONES) : null,
-          clienteid: String(row.CLIENTE_ID || row.clienteid || "").trim(),
-          disenadorid: String(row.DISENADOR_ID || row.disenadorid || row.DISENADOR || "").trim(),
-          molderiaid: String(row.MOLDERIA_ID || row.molderiaid || "").trim(),
-          ubicacionid: String(row.UBICACION_ID || row.ubicacionid || "").trim(),
+          clienteid,
+          disenadorid,
+          molderiaid,
+          ubicacionid,
         };
 
         this.validateRequiredCreatePayload(payload);
@@ -110,6 +116,133 @@ export class MuestraService {
       failed: errors.length,
       errors,
     };
+  }
+
+  async resolveClienteId(row) {
+    const existingId = String(row.CLIENTE_ID || row.clienteid || "").trim();
+    if (existingId) {
+      return existingId;
+    }
+
+    const nombre = this.normalizeCatalogText(row.CLIENTE || row.cliente || row.CLIENTE_NOMBRE);
+    if (!nombre) {
+      return "";
+    }
+
+    const existing = await Cliente.findOne({
+      where: {
+        nombre: {
+          [Op.iLike]: nombre,
+        },
+      },
+    });
+
+    if (existing) {
+      return existing.id;
+    }
+
+    const created = await Cliente.create({
+      nombre,
+      region: this.normalizeCatalogText(row.REGION || row.region) || null,
+    });
+
+    return created.id;
+  }
+
+  async resolveDisenadorId(row) {
+    const existingId = String(row.DISENADOR_ID || row.disenadorid || "").trim();
+    if (existingId) {
+      return existingId;
+    }
+
+    const nombre = this.normalizeCatalogText(
+      row.DISENADOR || row.DISEÑADOR || row.disenador || row.diseñador || row.DISENADOR_NOMBRE
+    );
+    if (!nombre) {
+      return "";
+    }
+
+    const existing = await Disenador.findOne({
+      where: {
+        nombre: {
+          [Op.iLike]: nombre,
+        },
+      },
+    });
+
+    if (existing) {
+      return existing.id;
+    }
+
+    const created = await Disenador.create({ nombre });
+    return created.id;
+  }
+
+  async resolveMolderiaId(row) {
+    const existingId = String(row.MOLDERIA_ID || row.molderiaid || "").trim();
+    if (existingId) {
+      return existingId;
+    }
+
+    const nombre = this.normalizeCatalogText(row.MOLDERIA || row.MOLDERÍA || row.molderia);
+    if (!nombre) {
+      return "";
+    }
+
+    const existing = await Molderia.findOne({
+      where: {
+        nombre: {
+          [Op.iLike]: nombre,
+        },
+      },
+    });
+
+    if (existing) {
+      return existing.id;
+    }
+
+    const created = await Molderia.create({
+      nombre,
+      tipohorma: this.normalizeCatalogText(row.TIPOHORMA || row.TIPO_HORMA) || "pendiente",
+      talon: this.normalizeCatalogText(row.TALON || row.talon) || "pendiente",
+      punta: this.normalizeCatalogText(row.PUNTA || row.punta) || "pendiente",
+      esnueva: this.parseBoolean(row.MOLDERIA_NUEVA ?? row.MOLDERÍA_NUEVA ?? row.esnueva),
+      marca: this.normalizeCatalogText(row.MARCA || row.marca) || null,
+    });
+
+    return created.id;
+  }
+
+  async resolveUbicacionId(row) {
+    const existingId = String(row.UBICACION_ID || row.ubicacionid || "").trim();
+    if (existingId) {
+      return existingId;
+    }
+
+    const nombre = this.normalizeCatalogText(row.UBICACION || row.UBICACIÓN || row.ubicacion);
+    if (!nombre) {
+      return "";
+    }
+
+    const existing = await Ubicacion.findOne({
+      where: {
+        nombre: {
+          [Op.iLike]: nombre,
+        },
+      },
+    });
+
+    if (existing) {
+      return existing.id;
+    }
+
+    const created = await Ubicacion.create({
+      nombre,
+      tipo: this.normalizeCatalogText(row.TIPO_UBICACION || row.tipo_ubicacion) || "bodega",
+      descripcion: this.normalizeCatalogText(row.DESCRIPCION_UBICACION || row.descripcion_ubicacion) || null,
+    });
+
+    return created.id;
   }
 
   async update(id, payload) {
@@ -353,6 +486,11 @@ export class MuestraService {
     }
 
     return parsed.toISOString().slice(0, 10);
+  }
+
+  normalizeCatalogText(value) {
+    const normalized = String(value ?? "").trim();
+    return normalized || "";
   }
 
   buildCode(prefix, referencia = "MUESTRA") {

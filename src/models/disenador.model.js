@@ -9,6 +9,10 @@ export const defineDisenadorModel = (sequelize) => {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
       },
+      nombre: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
     },
     {
       tableName: "disenadores",
