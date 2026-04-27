@@ -8,6 +8,7 @@
     "dev": "nodemon src/app.js",
     "test": "mocha \"src/__tests__/**/*.test.js\" --timeout 20000",
     "seed:demo": "node scripts/seed-demo.js",
+    "seed:full": "node scripts/seed-full.js",
     "migrate:legacy": "node scripts/migrate-legacy.js"
   },
   "keywords": [],

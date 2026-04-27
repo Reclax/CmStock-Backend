@@ -94,7 +94,6 @@ describe("Fotos (CmStock) - orden y control de tamaño", () => {
 
   after(async () => {
     cleanupUploads();
-    await sequelize.close();
   });
 
   it("POST /api/fotos/upload: asigna orden incremental por usuario+muestra", async () => {
