@@ -219,6 +219,7 @@ const resourceSpecs = [
       origen: { type: "string", enum: ["camara", "archivo"] },
       fechacarga: { type: "string", format: "date" },
       usuarioid: { type: "string", format: "uuid" },
+      orden: { type: ["integer", "null"], minimum: 1 },
     },
     required: ["muestraid", "urlarchivo", "origen", "fechacarga", "usuarioid"],
   },
@@ -521,6 +522,130 @@ export const buildOpenApiDocument = ({ serverUrl }) => {
 
     Object.assign(paths, buildPathObject(spec));
   }
+
+  // Ajustes y endpoints custom para Fotos (subida multipart + reordenamiento)
+  if (paths["/api/fotos"]?.get) {
+    paths["/api/fotos"].get.parameters = [
+      {
+        name: "muestraid",
+        in: "query",
+        required: false,
+        schema: { type: "string", format: "uuid" },
+        description: "Filtra fotos por muestra (se retorna el orden del usuario autenticado)",
+      },
+    ];
+  }
+
+  if (paths["/api/fotos"]?.post) {
+    // Se elimina el POST genérico del CRUD; solo queda /api/fotos/upload
+    delete paths["/api/fotos"].post;
+  }
+
+  // Eliminar endpoints por id del CRUD genérico
+  if (paths["/api/fotos/{id}"]) {
+    delete paths["/api/fotos/{id}"];
+  }
+
+  // POST /api/fotos/upload (multipart/form-data)
+  paths["/api/fotos/upload"] = {
+    post: {
+      tags: ["Fotos"],
+      summary: "Subir una foto (archivo) para una muestra",
+      description:
+        "Sube una imagen (JPG/PNG/WebP, máx 10MB). El usuario se obtiene del token y el campo 'orden' se asigna automáticamente por (muestra, usuario).",
+      security: [{ BearerAuth: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          "multipart/form-data": {
+            schema: {
+              type: "object",
+              required: ["file", "muestraid"],
+              properties: {
+                file: {
+                  type: "string",
+                  format: "binary",
+                  description: "Archivo de imagen",
+                },
+                muestraid: { type: "string", format: "uuid" },
+                origen: {
+                  type: "string",
+                  enum: ["camara", "archivo"],
+                  default: "archivo",
+                },
+                fechacarga: {
+                  type: "string",
+                  format: "date",
+                  description: "Opcional. Si no se envía, se usa la fecha actual.",
+                },
+              },
+              additionalProperties: false,
+            },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: "Foto creada y archivo guardado",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/Foto" },
+            },
+          },
+        },
+        400: { $ref: "#/components/responses/BadRequest" },
+        401: { $ref: "#/components/responses/Unauthorized" },
+        404: { $ref: "#/components/responses/NotFound" },
+      },
+    },
+  };
+
+  // PATCH /api/fotos/reordenar
+  paths["/api/fotos/reordenar"] = {
+    patch: {
+      tags: ["Fotos"],
+      summary: "Reordenar fotos de una muestra",
+      description:
+        "Persiste el orden de fotos del usuario autenticado dentro de la muestra. 'orderedIds' debe incluir todas las fotos del usuario para esa muestra.",
+      security: [{ BearerAuth: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["muestraid", "orderedIds"],
+              properties: {
+                muestraid: { type: "string", format: "uuid" },
+                orderedIds: {
+                  type: "array",
+                  minItems: 1,
+                  items: { type: "string", format: "uuid" },
+                },
+              },
+              additionalProperties: false,
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: "Listado reordenado",
+          content: {
+            "application/json": {
+              schema: {
+                type: "array",
+                items: { $ref: "#/components/schemas/Foto" },
+              },
+            },
+          },
+        },
+        400: { $ref: "#/components/responses/BadRequest" },
+        401: { $ref: "#/components/responses/Unauthorized" },
+        404: { $ref: "#/components/responses/NotFound" },
+      },
+    },
+  };
 
   // Agregar endpoints de autenticación
   const authPaths = {

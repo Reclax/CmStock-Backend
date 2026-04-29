@@ -19,8 +19,9 @@ const imageStorage = multer.diskStorage({
 });
 
 const imageFileFilter = (_req, file, cb) => {
-  if (!file.mimetype.startsWith("image/")) {
-    cb(new Error("Solo se permiten archivos de imagen"));
+  const allowed = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowed.includes(file.mimetype)) {
+    cb(new Error("Formato no permitido. Solo JPG/PNG/WebP."));
     return;
   }
   cb(null, true);
@@ -44,7 +45,7 @@ const excelFileFilter = (_req, file, cb) => {
 export const uploadImage = multer({
   storage: imageStorage,
   fileFilter: imageFileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
 });
 
 export const uploadExcel = multer({

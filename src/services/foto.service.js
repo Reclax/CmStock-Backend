@@ -19,6 +19,15 @@ export class FotoService {
     return this.repository.findAll();
   }
 
+  async getByMuestraForUser(muestraid, usuarioid) {
+    if (!muestraid) {
+      throw new HttpError(400, "muestraid es obligatorio");
+    }
+    await this.validateMuestraExists(muestraid);
+    await this.validateUsuarioExists(usuarioid);
+    return this.repository.findAll({ muestraid, usuarioid });
+  }
+
   async getById(id) {
     const foto = await this.repository.findById(id);
     if (!foto) {
@@ -35,6 +44,16 @@ export class FotoService {
     payload.origen = this.validateOrigen(payload.origen);
     await this.validateMuestraExists(payload.muestraid);
     await this.validateUsuarioExists(payload.usuarioid);
+
+    if (payload.orden !== undefined && payload.orden !== null) {
+      payload.orden = this.validateOrden(payload.orden);
+    } else {
+      payload.orden = await this.repository.getNextOrden({
+        muestraid: payload.muestraid,
+        usuarioid: payload.usuarioid,
+      });
+    }
+
     return this.repository.create(payload);
   }
 
@@ -56,7 +75,29 @@ export class FotoService {
       await this.validateUsuarioExists(payload.usuarioid);
     }
 
+    if (payload.orden !== undefined) {
+      payload.orden = this.validateOrden(payload.orden);
+    }
+
     return this.repository.update(foto, payload);
+  }
+
+  async reorderForUser({ muestraid, usuarioid, orderedIds }) {
+    if (!muestraid) {
+      throw new HttpError(400, "muestraid es obligatorio");
+    }
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+      throw new HttpError(400, "orderedIds debe ser un arreglo no vacío");
+    }
+
+    await this.validateMuestraExists(muestraid);
+    await this.validateUsuarioExists(usuarioid);
+
+    try {
+      return await this.repository.reorderByIds({ muestraid, usuarioid, orderedIds });
+    } catch (e) {
+      throw new HttpError(400, e?.message || "No se pudo reordenar fotos");
+    }
   }
 
   async remove(id) {
@@ -98,6 +139,14 @@ export class FotoService {
     }
 
     return origenNormalizado;
+  }
+
+  validateOrden(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) {
+      throw new HttpError(400, "orden debe ser un entero positivo");
+    }
+    return n;
   }
 
   async validateMuestraExists(muestraid) {

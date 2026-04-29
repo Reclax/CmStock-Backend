@@ -95,7 +95,7 @@ app.get("/", (req, res) => {
   res.send("API CM Stock funcionando");
 });
 
-const startServer = async () => {
+export const startServer = async () => {
   try {
     await connectDb();
     await syncModels();
@@ -109,4 +109,8 @@ const startServer = async () => {
   }
 };
 
-startServer();
+export { app };
+
+if (process.env.NODE_ENV !== "test") {
+  startServer();
+}

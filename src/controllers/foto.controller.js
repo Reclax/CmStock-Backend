@@ -1,4 +1,5 @@
 import { FotoService, HttpError } from "../services/foto.service.js";
+import fs from "fs";
 
 const service = new FotoService();
 
@@ -13,7 +14,10 @@ const handleError = (res, error) => {
 
 export const getFotos = async (req, res) => {
   try {
-    const data = await service.getAll();
+    const muestraid = req.query?.muestraid;
+    const data = muestraid
+      ? await service.getByMuestraForUser(muestraid, req.user.id)
+      : await service.getAll();
     return res.status(200).json(data);
   } catch (error) {
     return handleError(res, error);
@@ -24,15 +28,6 @@ export const getFotoById = async (req, res) => {
   try {
     const data = await service.getById(req.params.id);
     return res.status(200).json(data);
-  } catch (error) {
-    return handleError(res, error);
-  }
-};
-
-export const createFoto = async (req, res) => {
-  try {
-    const data = await service.create(req.body);
-    return res.status(201).json(data);
   } catch (error) {
     return handleError(res, error);
   }
@@ -55,23 +50,28 @@ export const uploadFotoArchivo = async (req, res) => {
     const data = await service.create(payload);
     return res.status(201).json(data);
   } catch (error) {
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch {
+        // ignore
+      }
+    }
     return handleError(res, error);
   }
 };
 
-export const updateFoto = async (req, res) => {
+export const reorderFotos = async (req, res) => {
   try {
-    const data = await service.update(req.params.id, req.body);
+    const { muestraid, orderedIds } = req.body || {};
+
+    const data = await service.reorderForUser({
+      muestraid,
+      usuarioid: req.user.id,
+      orderedIds,
+    });
+
     return res.status(200).json(data);
-  } catch (error) {
-    return handleError(res, error);
-  }
-};
-
-export const deleteFoto = async (req, res) => {
-  try {
-    await service.remove(req.params.id);
-    return res.status(204).send();
   } catch (error) {
     return handleError(res, error);
   }

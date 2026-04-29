@@ -29,6 +29,10 @@ export const defineFotoModel = (sequelize) => {
         type: DataTypes.UUID,
         allowNull: false,
       },
+      orden: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
     },
     {
       tableName: "fotos",
