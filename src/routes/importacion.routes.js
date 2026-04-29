@@ -5,7 +5,6 @@ import { fileURLToPath } from 'url';
 import {
   importarBaseDisController,
   importarAprobacionesController,
-  importarPreciosController,
   importarTodosController,
 } from '../controllers/importacion.controller.js';
 
@@ -58,19 +57,12 @@ router.post('/base-dis', upload.single('file'), importarBaseDisController);
 router.post('/aprobaciones', upload.single('file'), importarAprobacionesController);
 
 /**
- * POST /api/importacion/precios
- * Importar archivo Precios
- */
-router.post('/precios', upload.single('file'), importarPreciosController);
-
-/**
  * POST /api/importacion/todos
- * Importar múltiples archivos (baseDis, aprobaciones, precios opcional)
+ * Importar múltiples archivos (baseDis, aprobaciones)
  */
 router.post('/todos', upload.fields([
   { name: 'baseDis', maxCount: 1 },
   { name: 'aprobaciones', maxCount: 1 },
-  { name: 'precios', maxCount: 1 },
 ]), importarTodosController);
 
 export default router;
