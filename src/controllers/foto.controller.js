@@ -13,7 +13,11 @@ const handleError = (res, error) => {
 
 export const getFotos = async (req, res) => {
   try {
-    const data = await service.getAll();
+    const where = {};
+    if (req.query.muestraid) {
+      where.muestraid = req.query.muestraid;
+    }
+    const data = await service.getAll(where);
     return res.status(200).json(data);
   } catch (error) {
     return handleError(res, error);
@@ -54,6 +58,20 @@ export const uploadFotoArchivo = async (req, res) => {
 
     const data = await service.create(payload);
     return res.status(201).json(data);
+  } catch (error) {
+    return handleError(res, error);
+  }
+};
+
+export const uploadFotosEnMasa = async (req, res) => {
+  try {
+    const files = req.files;
+    if (!files || files.length === 0) {
+      throw new HttpError(400, "Debes enviar al menos un archivo de imagen");
+    }
+
+    const result = await service.createBulkFromFiles(files, req.user.id);
+    return res.status(200).json(result);
   } catch (error) {
     return handleError(res, error);
   }

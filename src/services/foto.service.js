@@ -1,3 +1,5 @@
+import path from "path";
+import { Op } from "sequelize";
 import { Muestra, Usuario } from "../models/index.js";
 import { FotoRepository } from "../repositories/foto.repository.js";
 
@@ -15,8 +17,8 @@ export class FotoService {
     this.repository = new FotoRepository();
   }
 
-  async getAll() {
-    return this.repository.findAll();
+  async getAll(where = {}) {
+    return this.repository.findAll(where);
   }
 
   async getById(id) {
@@ -66,6 +68,85 @@ export class FotoService {
     }
 
     await this.repository.delete(foto);
+  }
+
+  /**
+   * Sube múltiples imágenes vinculándolas automáticamente a muestras
+   * según la referencia extraída del nombre del archivo.
+   *
+   * Formato esperado del nombre: "D25-3753 FRONTAL.JPG"
+   *   → referencia = "D25-3753" (todo antes del primer espacio)
+   *
+   * @param {Express.Multer.File[]} files - Archivos subidos por multer
+   * @param {string} usuarioid - ID del usuario que realiza la carga
+   * @returns {{ vinculadas: number, omitidas: number, resultados: Array }}
+   */
+  async createBulkFromFiles(files, usuarioid) {
+    const fechacarga = new Date().toISOString().slice(0, 10);
+    const resultados = [];
+
+    for (const file of files) {
+      // Extraer referencia: nombre sin extensión, texto antes del primer espacio
+      const nameWithoutExt = path.parse(file.originalname).name;
+      const referencia = nameWithoutExt.split(/\s+/)[0].trim().toUpperCase();
+
+      if (!referencia) {
+        resultados.push({
+          ok: false,
+          archivo: file.originalname,
+          referencia: null,
+          motivo: "No se pudo extraer la referencia del nombre del archivo",
+        });
+        continue;
+      }
+
+      // Buscar muestra por referencia — primero match exacto, luego insensible
+      const muestra =
+        (await Muestra.findOne({ where: { referencia } })) ??
+        (await Muestra.findOne({
+          where: { referencia: { [Op.like]: referencia } },
+        }));
+
+      if (!muestra) {
+        resultados.push({
+          ok: false,
+          archivo: file.originalname,
+          referencia,
+          motivo: `No existe ninguna muestra con referencia "${referencia}"`,
+        });
+        continue;
+      }
+
+      try {
+        const foto = await this.repository.create({
+          muestraid: muestra.id,
+          urlarchivo: `/uploads/${file.filename}`,
+          origen: "archivo",
+          fechacarga,
+          usuarioid,
+        });
+
+        resultados.push({
+          ok: true,
+          archivo: file.originalname,
+          referencia,
+          muestraid: muestra.id,
+          fotoid: foto.id,
+        });
+      } catch (err) {
+        resultados.push({
+          ok: false,
+          archivo: file.originalname,
+          referencia,
+          motivo: `Error al guardar: ${err.message}`,
+        });
+      }
+    }
+
+    const vinculadas = resultados.filter((r) => r.ok).length;
+    const omitidas = resultados.filter((r) => !r.ok).length;
+
+    return { vinculadas, omitidas, resultados };
   }
 
   validateRequiredFields(payload) {

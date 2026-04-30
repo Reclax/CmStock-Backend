@@ -1,8 +1,11 @@
 import { Foto } from "../models/index.js";
 
 export class FotoRepository {
-  async findAll() {
-    return Foto.findAll({ order: [["createdat", "DESC"]] });
+  async findAll(where = {}) {
+    return Foto.findAll({
+      where,
+      order: [["createdat", "DESC"]],
+    });
   }
 
   async findById(id) {
