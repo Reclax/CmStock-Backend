@@ -18,6 +18,7 @@ import {
   updateEstadoByCode,
   updateMuestra,
 } from "../controllers/muestra.controller.js";
+import { getPresentacionesByMuestra } from "../controllers/presentacion.controller.js";
 import { authorize } from "../middleware/auth.middleware.js";
 import { uploadExcel } from "../middleware/upload.middleware.js";
 
@@ -31,6 +32,7 @@ router.get("/consultas/historial-ventas", getHistorialVentasPorCliente);
 router.get("/consultas/modelos-por-segmento-region", getModelosPorSegmentoRegion);
 router.get("/:id/qr", getQrImage);
 router.get("/:id/barcode", getBarcodeImage);
+router.get("/:id/presentaciones", getPresentacionesByMuestra);
 router.get("/:id", getMuestraById);
 router.post("/", createMuestra);
 router.post("/import/excel", uploadExcel.single("file"), importMuestrasExcel);

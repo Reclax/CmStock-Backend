@@ -19,6 +19,10 @@ export class PresentacionService {
     return this.repository.findAll();
   }
 
+  async getByMuestraId(muestraid) {
+    return this.repository.findByMuestraId(muestraid);
+  }
+
   async getById(id) {
     const presentacion = await this.repository.findById(id);
     if (!presentacion) {

@@ -19,6 +19,15 @@ export const getPresentaciones = async (req, res) => {
   }
 };
 
+export const getPresentacionesByMuestra = async (req, res) => {
+  try {
+    const data = await service.getByMuestraId(req.params.id);
+    return res.status(200).json(data);
+  } catch (error) {
+    return handleError(res, error);
+  }
+};
+
 export const getPresentacionById = async (req, res) => {
   try {
     const data = await service.getById(req.params.id);

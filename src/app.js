@@ -32,7 +32,12 @@ const PORT = Number(process.env.PORT || 3000);
 
 // Configuración de CORS
 const corsOptions = {
-  origin: ["http://localhost:3000", "http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:3001"],
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3001",
+    "https://rasheeda-nonexplorative-thickly.ngrok-free.dev",
+  ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],

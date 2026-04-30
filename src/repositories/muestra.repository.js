@@ -45,11 +45,11 @@ export class MuestraRepository {
     }
 
     if (filters.segmento) {
-      where.segmento = filters.segmento;
+      where.segmento = { [Op.iLike]: `%${filters.segmento}%` };
     }
 
     if (filters.estado) {
-      where.estado = filters.estado;
+      where.estado = { [Op.iLike]: filters.estado };
     }
 
     if (filters.licenciado !== undefined) {
