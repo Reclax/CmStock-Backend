@@ -20,6 +20,7 @@ import reporteRoutes from "./routes/reporte.routes.js";
 import trazabilidadRoutes from "./routes/trazabilidad.routes.js";
 import ubicacionRoutes from "./routes/ubicacion.routes.js";
 import usuarioRoutes from "./routes/usuario.routes.js";
+import disenadorRoutes from "./routes/disenador.routes.js";
 
 dotenv.config();
 
@@ -67,6 +68,7 @@ app.use("/api/movimientos-inventario", authenticate, movimientoInventarioRoutes)
 app.use("/api/presentaciones", authenticate, presentacionRoutes);
 app.use("/api/reportes", authenticate, reporteRoutes);
 app.use("/api/importacion", authenticate, importacionRoutes);
+app.use("/api/disenadores", authenticate, disenadorRoutes);
 
 app.get("/api-docs.json", (req, res) => {
   res.json(swaggerDocument);
