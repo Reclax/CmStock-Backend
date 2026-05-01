@@ -68,6 +68,10 @@ export class MuestraRepository {
       where.ubicacionid = filters.ubicacionid;
     }
 
+    if (filters.disenadorid) {
+      where.disenadorid = filters.disenadorid;
+    }
+
     if (filters.fechadesde || filters.fechahasta) {
       where.fechaelaboracion = {};
       if (filters.fechadesde) {

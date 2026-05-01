@@ -20,6 +20,7 @@ export const getMuestras = async (req, res) => {
       dima: req.query.dima,
       clienteid: req.query.clienteid,
       ubicacionid: req.query.ubicacionid,
+      disenadorid: req.query.disenadorid,
       tipomodelo: req.query.tipomodelo,
       region: req.query.region,
       fechadesde: req.query.fechadesde,
