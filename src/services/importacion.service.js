@@ -121,6 +121,17 @@ const esValorLicenciaActivo = (value) => {
   return value === true || value === 1 || raw === 'SI' || raw === 'SÍ';
 };
 
+const determinarEstadoMuestraAprobaciones = (aprobadas, ok) => {
+  const tieneAprobadas = Number(aprobadas) > 0;
+  const tieneOk = String(ok || '').trim().toUpperCase() === 'OK';
+
+  if (tieneAprobadas && tieneOk) {
+    return 'aprobada';
+  }
+
+  return 'presentada';
+};
+
 /**
  * Obtener o crear Cliente
  */
@@ -307,7 +318,7 @@ export const obtenerOCrearMuestra = async (
       talla: talla || null,
       pareselaborados: parseInt(pareselaborados) || 0,
       fechaelaboracion: fechaelaboracion || new Date().toISOString().slice(0, 10),
-      estado: estado || 'PENDIENTE',
+      estado: estado || 'pendiente',
       proceso: proceso || null,
       observaciones: observaciones || null,
       codigoqr: null,
@@ -362,6 +373,7 @@ export const importarBaseDis = async (filePath) => {
 
   let creados = 0;
   let procesados = 0;
+  const refsProcesadas = new Set();
 
   // Obtener ubicación por defecto para importaciones
   const ubicacion = await obtenerOCrearUbicacionImportacion();
@@ -391,6 +403,7 @@ export const importarBaseDis = async (filePath) => {
       procesados++;
       
       const ref = String(registro.ref || '').trim();
+      refsProcesadas.add(ref);
       if (procesados <= 3 || procesados % 100 === 0) {
         console.log(`\n🔍 Procesando orden ${procesados}: REF=${ref}, CLIENTE=${registro.cliente}, MOLDERÍA=${registro.molderia}`);
       }
@@ -429,7 +442,7 @@ export const importarBaseDis = async (filePath) => {
         registro.talla,            // talla
         registro.pares,            // pareselaborados
         excelDateToJSDate(registro.creacion), // fechaelaboracion
-        'PENDIENTE',               // estado (por defecto PENDIENTE)
+        'pendiente',               // estado (por defecto pendiente)
         registro.proceso,          // proceso
         registro.observaciones,    // observaciones
         cliente.id,                // clienteid
@@ -475,7 +488,7 @@ export const importarBaseDis = async (filePath) => {
   console.log(`   Total procesados: ${procesados}`);
   console.log(`   Nuevos creados: ${creados}`);
 
-  return { procesados, creados };
+  return { procesados, creados, refs: Array.from(refsProcesadas) };
 };
 
 /**
@@ -529,6 +542,7 @@ export const importarAprobaciones = async (filePath) => {
 
   let creados = 0;
   let procesados = 0;
+  const refsProcesadas = new Set();
 
   // Compatibilidad: si existe hoja separada, también se toma en cuenta
   const wsPresentacion = workbook.Sheets['presentacion muestras'];
@@ -562,8 +576,11 @@ export const importarAprobaciones = async (filePath) => {
       const aprobadas = parseInt(valorPorAlias(registro, mapaColumnas, ['APROBADAS'])) || 0;
       const ok = String(okIndex !== undefined ? registro[okIndex] : '').trim().toUpperCase();
       const observaciones = String(observIndex !== undefined ? registro[observIndex] : '').trim();
+      const estadoMuestra = determinarEstadoMuestraAprobaciones(aprobadas, ok);
 
       if (!ref) continue;
+
+      refsProcesadas.add(ref);
 
       // Obtener o crear entidades relacionadas
       let clienteRecord = await obtenerOCrearCliente(cliente);
@@ -590,7 +607,7 @@ export const importarAprobaciones = async (filePath) => {
           talla: null,
           pareselaborados: 0,
           fechaelaboracion: new Date().toISOString().slice(0, 10),
-          estado: ok === 'OK' ? 'PRESENTADA' : 'PENDIENTE',
+          estado: estadoMuestra,
           proceso: null,
           observaciones: null,
           clienteid: clienteRecord.id,
@@ -600,9 +617,9 @@ export const importarAprobaciones = async (filePath) => {
         });
         console.log(`✅ Muestra creada: ${ref}`);
       } else {
-        if (ok === 'OK' && muestra.estado !== 'PRESENTADA') {
-          await muestra.update({ estado: 'PRESENTADA' });
-          console.log(`🔄 Muestra actualizada a PRESENTADA: ${ref}`);
+        if (String(muestra.estado || '').trim().toLowerCase() !== estadoMuestra) {
+          await muestra.update({ estado: estadoMuestra });
+          console.log(`🔄 Muestra actualizada a ${estadoMuestra.toUpperCase()}: ${ref}`);
         }
       }
 
@@ -680,7 +697,38 @@ export const importarAprobaciones = async (filePath) => {
   console.log(`   Total procesados: ${procesados}`);
   console.log(`   Nuevos creados: ${creados}`);
 
-  return { procesados, creados };
+  return { procesados, creados, refsProcesadas: Array.from(refsProcesadas) };
+};
+
+const reconciliarEstadosPendientes = async (referenciasBaseDis = [], referenciasAprobadas = []) => {
+  const refsBaseDis = [...new Set(referenciasBaseDis.map((ref) => String(ref || '').trim()).filter(Boolean))];
+  const refsAprobadas = new Set(
+    referenciasAprobadas.map((ref) => String(ref || '').trim()).filter(Boolean),
+  );
+
+  if (!refsBaseDis.length) {
+    return { actualizadas: 0 };
+  }
+
+  const muestras = await Muestra.findAll({
+    where: {
+      referencia: {
+        [Op.in]: refsBaseDis,
+      },
+    },
+  });
+
+  let actualizadas = 0;
+  for (const muestra of muestras) {
+    if (!refsAprobadas.has(String(muestra.referencia || '').trim())) {
+      if (String(muestra.estado || '').trim().toLowerCase() !== 'pendiente') {
+        await muestra.update({ estado: 'pendiente' });
+        actualizadas++;
+      }
+    }
+  }
+
+  return { actualizadas };
 };
 
 /**
@@ -696,13 +744,29 @@ export const importarTodos = async (baseDisPath, aprobacionesPath) => {
     aprobaciones: null,
   };
 
+  let refsBaseDis = [];
+  let refsAprobaciones = [];
+
   try {
     if (baseDisPath) {
-      resultados.baseDis = await importarBaseDis(baseDisPath);
+      const baseDisImport = await importarBaseDis(baseDisPath);
+      const { refs, ...baseDisResultado } = baseDisImport;
+      resultados.baseDis = baseDisResultado;
+      refsBaseDis = refs;
     }
     
     if (aprobacionesPath) {
-      resultados.aprobaciones = await importarAprobaciones(aprobacionesPath);
+      const aprobacionesImport = await importarAprobaciones(aprobacionesPath);
+      const { refsProcesadas, ...aprobacionesResultado } = aprobacionesImport;
+      resultados.aprobaciones = aprobacionesResultado;
+      refsAprobaciones = refsProcesadas;
+    }
+
+    if (refsBaseDis.length) {
+      resultados.reconciliacion = await reconciliarEstadosPendientes(
+        refsBaseDis,
+        refsAprobaciones,
+      );
     }
 
     console.log('\n✅ IMPORTACIÓN MASIVA COMPLETADA EXITOSAMENTE');
