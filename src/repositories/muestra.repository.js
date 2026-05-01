@@ -120,7 +120,10 @@ export class MuestraRepository {
       distinct: true,
       limit,
       offset,
-      order: [["fechaelaboracion", "DESC"]],
+      order: [
+        ["fechaelaboracion", "DESC"],
+        ["id", "ASC"],
+      ],
     });
 
     return {
