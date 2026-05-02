@@ -48,7 +48,7 @@ const excelFileFilter = (_req, file, cb) => {
 export const uploadImage = multer({
   storage: imageStorage,
   fileFilter: imageFileFilter,
-  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 export const uploadExcel = multer({
