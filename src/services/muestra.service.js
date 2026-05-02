@@ -13,6 +13,7 @@ import { MuestraRepository } from "../repositories/muestra.repository.js";
 
 const ESTADOS_VALIDOS = new Set([
   "nueva",
+  "pendiente",
   "presentada",
   "aprobada",
   "rechazada",

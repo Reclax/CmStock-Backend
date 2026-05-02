@@ -1,6 +1,8 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
 import { connectDb } from "./config/database.js";
 import { buildOpenApiDocument } from "./docs/openapi.js";
 import { syncModels } from "./models/index.js";
@@ -8,6 +10,7 @@ import { authenticate } from "./middleware/auth.middleware.js";
 import authRoutes from "./routes/auth.routes.js";
 import clienteRoutes from "./routes/cliente.routes.js";
 import fotoRoutes from "./routes/foto.routes.js";
+import importacionRoutes from "./routes/importacion.routes.js";
 import molderiaRoutes from "./routes/molderia.routes.js";
 import movimientoInventarioRoutes from "./routes/movimiento-inventario.routes.js";
 import muestraRoutes from "./routes/muestra.routes.js";
@@ -17,15 +20,25 @@ import reporteRoutes from "./routes/reporte.routes.js";
 import trazabilidadRoutes from "./routes/trazabilidad.routes.js";
 import ubicacionRoutes from "./routes/ubicacion.routes.js";
 import usuarioRoutes from "./routes/usuario.routes.js";
+import disenadorRoutes from "./routes/disenador.routes.js";
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsPath = path.resolve(__dirname, "../uploads");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 
 // Configuración de CORS
 const corsOptions = {
-  origin: ["http://localhost:3000", "http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:3001"],
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3001",
+    "https://rasheeda-nonexplorative-thickly.ngrok-free.dev",
+  ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
@@ -37,7 +50,7 @@ const swaggerDocument = buildOpenApiDocument({
 
 app.use(cors(corsOptions));
 app.use(express.json());
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static(uploadsPath));
 
 // Rutas públicas (sin autenticación)
 app.use("/api/auth", authRoutes);
@@ -54,6 +67,8 @@ app.use("/api/producciones", authenticate, produccionRoutes);
 app.use("/api/movimientos-inventario", authenticate, movimientoInventarioRoutes);
 app.use("/api/presentaciones", authenticate, presentacionRoutes);
 app.use("/api/reportes", authenticate, reporteRoutes);
+app.use("/api/importacion", authenticate, importacionRoutes);
+app.use("/api/disenadores", authenticate, disenadorRoutes);
 
 app.get("/api-docs.json", (req, res) => {
   res.json(swaggerDocument);

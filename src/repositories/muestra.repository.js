@@ -45,11 +45,11 @@ export class MuestraRepository {
     }
 
     if (filters.segmento) {
-      where.segmento = filters.segmento;
+      where.segmento = { [Op.iLike]: `%${filters.segmento}%` };
     }
 
     if (filters.estado) {
-      where.estado = filters.estado;
+      where.estado = { [Op.iLike]: filters.estado };
     }
 
     if (filters.licenciado !== undefined) {
@@ -66,6 +66,10 @@ export class MuestraRepository {
 
     if (filters.ubicacionid) {
       where.ubicacionid = filters.ubicacionid;
+    }
+
+    if (filters.disenadorid) {
+      where.disenadorid = filters.disenadorid;
     }
 
     if (filters.fechadesde || filters.fechahasta) {
@@ -120,7 +124,10 @@ export class MuestraRepository {
       distinct: true,
       limit,
       offset,
-      order: [["fechaelaboracion", "DESC"]],
+      order: [
+        ["fechaelaboracion", "DESC"],
+        ["id", "ASC"],
+      ],
     });
 
     return {

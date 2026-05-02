@@ -18,7 +18,7 @@ coverage/
 # Carpeta de build (si usas algún bundler)
 dist/
 build/
-
+uploads/
 # Archivos de configuración específicos de editor
 .vscode/
 .idea/

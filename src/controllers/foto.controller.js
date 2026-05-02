@@ -33,6 +33,15 @@ export const getFotoById = async (req, res) => {
   }
 };
 
+export const createFoto = async (req, res) => {
+  try {
+    const data = await service.create(req.body);
+    return res.status(201).json(data);
+  } catch (error) {
+    return handleError(res, error);
+  }
+};
+
 export const uploadFotoArchivo = async (req, res) => {
   try {
     if (!req.file) {
@@ -61,6 +70,20 @@ export const uploadFotoArchivo = async (req, res) => {
   }
 };
 
+export const uploadFotosEnMasa = async (req, res) => {
+  try {
+    const files = req.files;
+    if (!files || files.length === 0) {
+      throw new HttpError(400, "Debes enviar al menos un archivo de imagen");
+    }
+
+    const result = await service.createBulkFromFiles(files, req.user.id);
+    return res.status(200).json(result);
+  } catch (error) {
+    return handleError(res, error);
+  }
+};
+
 export const reorderFotos = async (req, res) => {
   try {
     const { muestraid, orderedIds } = req.body || {};
@@ -72,6 +95,24 @@ export const reorderFotos = async (req, res) => {
     });
 
     return res.status(200).json(data);
+  } catch (error) {
+    return handleError(res, error);
+  }
+};
+
+export const updateFoto = async (req, res) => {
+  try {
+    const data = await service.update(req.params.id, req.body);
+    return res.status(200).json(data);
+  } catch (error) {
+    return handleError(res, error);
+  }
+};
+
+export const deleteFoto = async (req, res) => {
+  try {
+    await service.remove(req.params.id);
+    return res.status(204).send();
   } catch (error) {
     return handleError(res, error);
   }

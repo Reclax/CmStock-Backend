@@ -13,10 +13,6 @@ export const defineMuestraModel = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
-      modelo: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
       segmento: {
         type: DataTypes.STRING,
         allowNull: false,
@@ -31,6 +27,18 @@ export const defineMuestraModel = (sequelize) => {
       },
       talla: {
         type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      color: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      tallas: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      precio: {
+        type: DataTypes.DECIMAL(10, 2),
         allowNull: true,
       },
       pareselaborados: {

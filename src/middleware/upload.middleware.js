@@ -1,8 +1,11 @@
 import fs from "fs";
 import path from "path";
 import multer from "multer";
+import { fileURLToPath } from "url";
 
-const uploadsDir = path.join(process.cwd(), "uploads");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.resolve(__dirname, "../../uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -45,7 +48,7 @@ const excelFileFilter = (_req, file, cb) => {
 export const uploadImage = multer({
   storage: imageStorage,
   fileFilter: imageFileFilter,
-  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 export const uploadExcel = multer({
