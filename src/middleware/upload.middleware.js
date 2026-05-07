@@ -22,8 +22,9 @@ const imageStorage = multer.diskStorage({
 });
 
 const imageFileFilter = (_req, file, cb) => {
-  if (!file.mimetype.startsWith("image/")) {
-    cb(new Error("Solo se permiten archivos de imagen"));
+  const allowed = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowed.includes(file.mimetype)) {
+    cb(new Error("Formato no permitido. Solo JPG/PNG/WebP."));
     return;
   }
   cb(null, true);

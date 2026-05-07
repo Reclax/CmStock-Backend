@@ -96,6 +96,10 @@ const migrateLegacyCatalogData = async () => {
     type: DataTypes.STRING,
   });
 
+  await ensureColumnExists(queryInterface, "fotos", "orden", {
+    type: DataTypes.INTEGER,
+  });
+
   await sequelize.query(`
     UPDATE clientes
     SET nombre = COALESCE(nombre, 'Cliente ' || id::text)
@@ -130,6 +134,24 @@ const migrateLegacyCatalogData = async () => {
       nombre = COALESCE(nombre, 'Ubicacion ' || id::text),
       tipo = COALESCE(tipo, 'bodega')
     WHERE nombre IS NULL OR tipo IS NULL
+  `);
+
+  // Backfill order for legacy photos (when orden is null)
+  await sequelize.query(`
+    WITH ranked AS (
+      SELECT
+        id,
+        ROW_NUMBER() OVER (
+          PARTITION BY muestraid, usuarioid
+          ORDER BY createdat ASC, id ASC
+        ) AS rn
+      FROM fotos
+      WHERE orden IS NULL
+    )
+    UPDATE fotos AS f
+    SET orden = ranked.rn
+    FROM ranked
+    WHERE f.id = ranked.id
   `);
 
   await sequelize.query(`
@@ -274,7 +296,7 @@ const seedDefaultUsers = async () => {
         activo: true,
       });
 
-      console.log("✅ Usuario administrador creado: admin@cmstock.com / admin123");
+      console.log("Usuario administrador creado: admin@cmstock.com / admin123");
     }
 
     // Crear otros usuarios de ejemplo si no existen
@@ -311,7 +333,7 @@ const seedDefaultUsers = async () => {
           password: hashedPassword,
           activo: true,
         });
-        console.log(`✅ Usuario creado: ${userData.email} / ${userData.password}`);
+        console.log(`Usuario creado: ${userData.email} / ${userData.password}`);
       }
     }
   } catch (error) {
@@ -319,9 +341,29 @@ const seedDefaultUsers = async () => {
   }
 };
 
-export const syncModels = async () => {
-  await sequelize.sync({ alter: true });
+export const syncModels = async (options = {}) => {
+  const {
+    alter = true,
+    migrateLegacy = false,
+    seedUsers = false,
+  } = options;
+
+  await sequelize.sync({ alter });
+
+  if (migrateLegacy) {
+    await migrateLegacyCatalogData();
+  }
+
+  if (seedUsers) {
+    await seedDefaultUsers();
+  }
+};
+
+export const runLegacyMigrations = async () => {
   await migrateLegacyCatalogData();
   await migrateLegacyVariations();
+};
+
+export const seedSystemUsers = async () => {
   await seedDefaultUsers();
 };
