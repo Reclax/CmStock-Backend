@@ -8,6 +8,7 @@ import { defineModeladorModel } from "./modelador.model.js";
 import { defineMolderiaModel } from "./molderia.model.js";
 import { defineMovimientoInventarioModel } from "./movimiento-inventario.model.js";
 import { defineMuestraModel } from "./muestra.model.js";
+import { defineVariacionModel } from "./variacion.model.js";
 import { definePresentacionModel } from "./presentacion.model.js";
 import { defineProduccionModel } from "./produccion.model.js";
 import { defineTrazabilidadModel } from "./trazabilidad.model.js";
@@ -21,6 +22,7 @@ export const Modelador = defineModeladorModel(sequelize);
 export const Ubicacion = defineUbicacionModel(sequelize);
 export const Usuario = defineUsuarioModel(sequelize);
 export const Muestra = defineMuestraModel(sequelize);
+export const Variacion = defineVariacionModel(sequelize);
 export const Produccion = defineProduccionModel(sequelize);
 export const MovimientoInventario = defineMovimientoInventarioModel(sequelize);
 export const Presentacion = definePresentacionModel(sequelize);
@@ -90,6 +92,9 @@ const migrateLegacyCatalogData = async () => {
   await ensureColumnExists(queryInterface, "muestras", "codigobarras", {
     type: DataTypes.STRING,
   });
+  await ensureColumnExists(queryInterface, "muestras", "licencia", {
+    type: DataTypes.STRING,
+  });
 
   await sequelize.query(`
     UPDATE clientes
@@ -126,12 +131,65 @@ const migrateLegacyCatalogData = async () => {
       tipo = COALESCE(tipo, 'bodega')
     WHERE nombre IS NULL OR tipo IS NULL
   `);
+
+  await sequelize.query(`
+    UPDATE muestras
+    SET variacion = false
+    WHERE variacion IS NULL
+  `);
 };
 
+const migrateLegacyVariations = async () => {
+  const legacyVariations = await Muestra.findAll({
+    where: { variacion: true },
+    order: [["createdat", "ASC"]],
+  });
+
+  for (const legacyVariation of legacyVariations) {
+    const existing = await Variacion.findByPk(legacyVariation.id);
+    if (existing) {
+      continue;
+    }
+
+    await Variacion.create({
+      id: legacyVariation.id,
+      referencia: legacyVariation.referencia,
+      orden: null,
+      segmento: legacyVariation.segmento,
+      licencia: legacyVariation.licencia || null,
+      licenciado: legacyVariation.licenciado,
+      dima: legacyVariation.dima,
+      talla: legacyVariation.talla,
+      color: legacyVariation.color,
+      tallas: legacyVariation.tallas,
+      precio: legacyVariation.precio,
+      pareselaborados: legacyVariation.pareselaborados,
+      fechaelaboracion: legacyVariation.fechaelaboracion,
+      estado: legacyVariation.estado,
+      proceso: legacyVariation.proceso,
+      observaciones: legacyVariation.observaciones,
+      codigoqr: legacyVariation.codigoqr,
+      codigobarras: legacyVariation.codigobarras,
+      clienteid: legacyVariation.clienteid,
+      disenadorid: legacyVariation.disenadorid,
+      molderiaid: legacyVariation.molderiaid,
+      ubicacionid: legacyVariation.ubicacionid,
+      variacion: true,
+      muestraOriginalId: legacyVariation.muestraOriginalId,
+    });
+  }
+};
+
+Muestra.hasMany(Variacion, { foreignKey: "muestraOriginalId", as: "variaciones" });
+Variacion.belongsTo(Muestra, { foreignKey: "muestraOriginalId", as: "muestraOriginal" });
 Muestra.belongsTo(Cliente, { foreignKey: "clienteid", as: "cliente" });
 Muestra.belongsTo(Disenador, { foreignKey: "disenadorid", as: "disenador" });
 Muestra.belongsTo(Molderia, { foreignKey: "molderiaid", as: "molderia" });
 Muestra.belongsTo(Ubicacion, { foreignKey: "ubicacionid", as: "ubicacion" });
+Variacion.belongsTo(Cliente, { foreignKey: "clienteid", as: "cliente" });
+Variacion.belongsTo(Disenador, { foreignKey: "disenadorid", as: "disenador" });
+Variacion.belongsTo(Molderia, { foreignKey: "molderiaid", as: "molderia" });
+Variacion.belongsTo(Ubicacion, { foreignKey: "ubicacionid", as: "ubicacion" });
 Produccion.belongsTo(Muestra, { foreignKey: "muestraid", as: "muestra" });
 Produccion.belongsTo(Cliente, { foreignKey: "clienteid", as: "cliente" });
 MovimientoInventario.belongsTo(Muestra, {
@@ -160,6 +218,10 @@ Cliente.hasMany(Muestra, { foreignKey: "clienteid", as: "muestras" });
 Disenador.hasMany(Muestra, { foreignKey: "disenadorid", as: "muestras" });
 Molderia.hasMany(Muestra, { foreignKey: "molderiaid", as: "muestras" });
 Ubicacion.hasMany(Muestra, { foreignKey: "ubicacionid", as: "muestras" });
+Cliente.hasMany(Variacion, { foreignKey: "clienteid", as: "variaciones" });
+Disenador.hasMany(Variacion, { foreignKey: "disenadorid", as: "variaciones" });
+Molderia.hasMany(Variacion, { foreignKey: "molderiaid", as: "variaciones" });
+Ubicacion.hasMany(Variacion, { foreignKey: "ubicacionid", as: "variaciones" });
 Muestra.hasMany(Produccion, { foreignKey: "muestraid", as: "producciones" });
 Cliente.hasMany(Produccion, { foreignKey: "clienteid", as: "producciones" });
 Muestra.hasMany(MovimientoInventario, {
@@ -260,5 +322,6 @@ const seedDefaultUsers = async () => {
 export const syncModels = async () => {
   await sequelize.sync({ alter: true });
   await migrateLegacyCatalogData();
+  await migrateLegacyVariations();
   await seedDefaultUsers();
 };

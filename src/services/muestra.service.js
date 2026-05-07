@@ -81,6 +81,7 @@ export class MuestraService {
           referencia: String(row.REF || row.REFERENCIA || row.referencia || "").trim(),
           modelo: String(row.MODELO || row.modelo || "").trim(),
           segmento: String(row.SEGMENTO || row.segmento || "").trim(),
+          licencia: row.LICENCIA ? String(row.LICENCIA) : String(row.licencia || "").trim() || null,
           licenciado: this.parseBoolean(row.LICENCIA ?? row.licenciado),
           dima: row.DIMA ? String(row.DIMA) : null,
           talla: row.TALLA ? Number(row.TALLA) : null,
@@ -464,7 +465,15 @@ export class MuestraService {
     }
 
     const normalized = String(value ?? "").trim().toLowerCase();
-    return ["true", "1", "si", "sí", "licenciado", "yes"].includes(normalized);
+    if (!normalized) {
+      return false;
+    }
+
+    if (["false", "0", "no", "n", "sin licencia", "no licenciado"].includes(normalized)) {
+      return false;
+    }
+
+    return ["true", "1", "si", "sí", "licenciado", "yes"].includes(normalized) || normalized.length > 0;
   }
 
   parseDate(value) {

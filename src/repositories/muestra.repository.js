@@ -49,7 +49,11 @@ export class MuestraRepository {
     }
 
     if (filters.estado) {
+      // Filtro explícito: muestra exactamente el estado pedido (incluido dada_de_baja)
       where.estado = { [Op.iLike]: filters.estado };
+    } else {
+      // Sin filtro: ocultar las dadas de baja por defecto
+      where.estado = { [Op.ne]: "dada_de_baja" };
     }
 
     if (filters.licenciado !== undefined) {
@@ -64,6 +68,17 @@ export class MuestraRepository {
       where.clienteid = filters.clienteid;
     }
 
+    if (filters.molderia) {
+      const molderias = await Molderia.findAll({
+        where: { nombre: { [Op.iLike]: `%${filters.molderia}%` } },
+        attributes: ["id"],
+        raw: true,
+      });
+      const ids = molderias.map((m) => m.id);
+      // Si no hay molderías que coincidan, forzar 0 resultados
+      where.molderiaid = ids.length > 0 ? { [Op.in]: ids } : { [Op.in]: ["__none__"] };
+    }
+
     if (filters.ubicacionid) {
       where.ubicacionid = filters.ubicacionid;
     }
@@ -71,6 +86,11 @@ export class MuestraRepository {
     if (filters.disenadorid) {
       where.disenadorid = filters.disenadorid;
     }
+
+    where[Op.or] = [
+      { variacion: false },
+      { variacion: null },
+    ];
 
     if (filters.fechadesde || filters.fechahasta) {
       where.fechaelaboracion = {};
@@ -83,7 +103,10 @@ export class MuestraRepository {
     }
 
     if (filters.tipomodelo) {
-      include[1].where = { tipohorma: { [Op.iLike]: `%${filters.tipomodelo}%` } };
+      include[1].where = {
+        ...include[1].where,
+        tipohorma: { [Op.iLike]: `%${filters.tipomodelo}%` },
+      };
       include[1].required = true;
     }
 

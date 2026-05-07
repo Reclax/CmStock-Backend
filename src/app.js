@@ -17,6 +17,7 @@ import muestraRoutes from "./routes/muestra.routes.js";
 import presentacionRoutes from "./routes/presentacion.routes.js";
 import produccionRoutes from "./routes/produccion.routes.js";
 import reporteRoutes from "./routes/reporte.routes.js";
+import variacionRoutes from "./routes/variacion.routes.js";
 import trazabilidadRoutes from "./routes/trazabilidad.routes.js";
 import ubicacionRoutes from "./routes/ubicacion.routes.js";
 import usuarioRoutes from "./routes/usuario.routes.js";
@@ -38,6 +39,7 @@ const corsOptions = {
     "http://localhost:5173",
     "http://127.0.0.1:3001",
     "https://rasheeda-nonexplorative-thickly.ngrok-free.dev",
+    "https://09nk4wg0-5173.use2.devtunnels.ms"
   ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -68,6 +70,7 @@ app.use("/api/movimientos-inventario", authenticate, movimientoInventarioRoutes)
 app.use("/api/presentaciones", authenticate, presentacionRoutes);
 app.use("/api/reportes", authenticate, reporteRoutes);
 app.use("/api/importacion", authenticate, importacionRoutes);
+app.use("/api/variaciones", authenticate, variacionRoutes);
 app.use("/api/disenadores", authenticate, disenadorRoutes);
 
 app.get("/api-docs.json", (req, res) => {

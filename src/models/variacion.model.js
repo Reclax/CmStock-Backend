@@ -1,8 +1,8 @@
 import { DataTypes } from "sequelize";
 
-export const defineMuestraModel = (sequelize) => {
+export const defineVariacionModel = (sequelize) => {
   return sequelize.define(
-    "Muestra",
+    "Variacion",
     {
       id: {
         type: DataTypes.UUID,
@@ -12,6 +12,10 @@ export const defineMuestraModel = (sequelize) => {
       referencia: {
         type: DataTypes.STRING,
         allowNull: false,
+      },
+      orden: {
+        type: DataTypes.STRING,
+        allowNull: true,
       },
       segmento: {
         type: DataTypes.STRING,
@@ -93,16 +97,16 @@ export const defineMuestraModel = (sequelize) => {
       },
       variacion: {
         type: DataTypes.BOOLEAN,
-        defaultValue: false,
+        defaultValue: true,
         allowNull: false,
       },
       muestraOriginalId: {
         type: DataTypes.UUID,
-        allowNull: true,
+        allowNull: false,
       },
     },
     {
-      tableName: "muestras",
+      tableName: "variaciones",
       timestamps: true,
       createdAt: "createdat",
       updatedAt: "updatedat",
