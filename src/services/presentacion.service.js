@@ -1,7 +1,14 @@
 import { Cliente, Muestra } from "../models/index.js";
 import { PresentacionRepository } from "../repositories/presentacion.repository.js";
 
-const RESULTADOS_VALIDOS = new Set(["aprobada", "rechazada"]);
+const RESULTADOS_VALIDOS = new Set([
+  "aprobada",
+  "rechazada",
+  "pendiente",
+  "producida",
+  "parcial",
+  "revisar",
+]);
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -98,7 +105,7 @@ export class PresentacionService {
     if (!RESULTADOS_VALIDOS.has(resultadoNormalizado)) {
       throw new HttpError(
         400,
-        "resultado invalido. Valores permitidos: aprobada, rechazada"
+        "resultado invalido. Valores permitidos: aprobada, rechazada, pendiente, producida, parcial, revisar"
       );
     }
 
