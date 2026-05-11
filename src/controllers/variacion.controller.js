@@ -44,3 +44,30 @@ export const getVariacionById = async (req, res) => {
     return handleError(res, error);
   }
 };
+
+export const createVariacion = async (req, res) => {
+  try {
+    const data = await service.create(req.body);
+    return res.status(201).json(data);
+  } catch (error) {
+    return handleError(res, error);
+  }
+};
+
+export const updateVariacion = async (req, res) => {
+  try {
+    const data = await service.update(req.params.id, req.body);
+    return res.status(200).json(data);
+  } catch (error) {
+    return handleError(res, error);
+  }
+};
+
+export const deleteVariacion = async (req, res) => {
+  try {
+    await service.remove(req.params.id);
+    return res.status(204).send();
+  } catch (error) {
+    return handleError(res, error);
+  }
+};

@@ -83,4 +83,17 @@ export class VariacionRepository {
       ],
     });
   }
+
+  async create(payload) {
+    return Variacion.create(payload);
+  }
+
+  async update(instance, payload) {
+    await instance.update(payload);
+    return instance;
+  }
+
+  async delete(instance) {
+    await instance.destroy();
+  }
 }

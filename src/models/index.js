@@ -100,6 +100,16 @@ const migrateLegacyCatalogData = async () => {
     type: DataTypes.INTEGER,
   });
 
+  // Drop FK constraint on presentaciones.muestraid so it can reference Muestra OR Variacion
+  try {
+    await sequelize.query(`
+      ALTER TABLE presentaciones
+      DROP CONSTRAINT IF EXISTS "presentaciones_muestraid_fkey";
+    `);
+  } catch (_) {
+    // Ignore if constraint doesn't exist or already dropped
+  }
+
   await sequelize.query(`
     UPDATE clientes
     SET nombre = COALESCE(nombre, 'Cliente ' || id::text)
@@ -222,9 +232,11 @@ MovimientoInventario.belongsTo(Usuario, {
   foreignKey: "usuarioid",
   as: "usuario",
 });
-Presentacion.belongsTo(Muestra, { foreignKey: "muestraid", as: "muestra" });
+// Presentacion.muestraid puede ser Muestra o Variacion; validación en app, sin FK en BD
+Presentacion.belongsTo(Muestra, { foreignKey: "muestraid", as: "muestra", constraints: false });
+Presentacion.belongsTo(Variacion, { foreignKey: "muestraid", as: "variacion", constraints: false });
 Presentacion.belongsTo(Cliente, { foreignKey: "clienteid", as: "cliente" });
-Foto.belongsTo(Muestra, { foreignKey: "muestraid", as: "muestra" });
+// Foto.muestraid puede ser Muestra o Variacion; validación en app, sin FK en BD
 Foto.belongsTo(Usuario, { foreignKey: "usuarioid", as: "usuario" });
 Trazabilidad.belongsTo(Muestra, { foreignKey: "muestraid", as: "muestra" });
 Trazabilidad.belongsTo(Disenador, {
@@ -254,15 +266,14 @@ Usuario.hasMany(MovimientoInventario, {
   foreignKey: "usuarioid",
   as: "movimientosInventario",
 });
-Muestra.hasMany(Presentacion, {
-  foreignKey: "muestraid",
-  as: "presentaciones",
-});
+Muestra.hasMany(Presentacion, { foreignKey: "muestraid", as: "presentaciones", constraints: false });
+Variacion.hasMany(Presentacion, { foreignKey: "muestraid", as: "presentaciones", constraints: false });
 Cliente.hasMany(Presentacion, {
   foreignKey: "clienteid",
   as: "presentaciones",
 });
-Muestra.hasMany(Foto, { foreignKey: "muestraid", as: "fotos" });
+// Foto.muestraid puede ser Muestra o Variacion; sin constraints en BD para validación en app
+Muestra.hasMany(Foto, { foreignKey: "muestraid", as: "fotos", constraints: false });
 Usuario.hasMany(Foto, { foreignKey: "usuarioid", as: "fotos" });
 Muestra.hasMany(Trazabilidad, {
   foreignKey: "muestraid",

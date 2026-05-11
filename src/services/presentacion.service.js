@@ -1,4 +1,4 @@
-import { Cliente, Muestra } from "../models/index.js";
+import { Cliente, Muestra, Variacion } from "../models/index.js";
 import { PresentacionRepository } from "../repositories/presentacion.repository.js";
 
 const RESULTADOS_VALIDOS = new Set([
@@ -113,11 +113,12 @@ export class PresentacionService {
   }
 
   async validateMuestraExists(muestraid) {
-    const muestra = await Muestra.findByPk(muestraid);
-    if (!muestra) {
-      throw new HttpError(404, `Muestra con id ${muestraid} no existe`);
+    // Aceptar tanto muestras como variaciones
+    const owner = (await Muestra.findByPk(muestraid)) ?? (await Variacion.findByPk(muestraid));
+    if (!owner) {
+      throw new HttpError(404, `Muestra o variación con id ${muestraid} no existe`);
     }
-    return muestra;
+    return owner;
   }
 
   async validateClienteExists(clienteid) {
