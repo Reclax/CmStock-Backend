@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import { connectDb } from "./config/database.js";
+import { connectDb, sequelize } from "./config/database.js";
 import { buildOpenApiDocument } from "./docs/openapi.js";
 import { syncModels } from "./models/index.js";
 import { authenticate } from "./middleware/auth.middleware.js";
@@ -116,6 +116,27 @@ app.get("/", (req, res) => {
 export const startServer = async () => {
   try {
     await connectDb();
+
+    // Eliminar FK constraints ANTES de sincronizar, para que Sequelize no las recree
+    try {
+      await sequelize.query(
+        `ALTER TABLE fotos DROP CONSTRAINT IF EXISTS fotos_muestraid_fkey;`
+      );
+      console.log("FK constraint removida de fotos.muestraid (preemptive)");
+    } catch (fkError) {
+      console.warn("No se pudo remover FK constraint de fotos:", fkError.message);
+    }
+
+    // presentaciones.muestraid puede apuntar a muestras O variaciones → sin FK en BD
+    try {
+      await sequelize.query(
+        `ALTER TABLE presentaciones DROP CONSTRAINT IF EXISTS "presentaciones_muestraid_fkey";`
+      );
+      console.log("FK constraint removida de presentaciones.muestraid (preemptive)");
+    } catch (fkError) {
+      console.warn("No se pudo remover FK constraint de presentaciones:", fkError.message);
+    }
+
     await syncModels();
 
     app.listen(PORT, () => {

@@ -39,6 +39,7 @@ export const defineFotoModel = (sequelize) => {
       timestamps: true,
       createdAt: "createdat",
       updatedAt: "updatedat",
+      constraints: false,
     }
   );
 };

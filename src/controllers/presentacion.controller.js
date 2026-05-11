@@ -7,7 +7,8 @@ const handleError = (res, error) => {
     return res.status(error.status).json({ message: error.message });
   }
 
-  return res.status(500).json({ message: "Error interno del servidor" });
+  console.error("Error inesperado en presentaciones:", error);
+  return res.status(500).json({ message: "Error interno del servidor", error: error.message });
 };
 
 export const getPresentaciones = async (req, res) => {

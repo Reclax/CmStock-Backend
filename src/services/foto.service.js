@@ -1,6 +1,6 @@
 import path from "path";
 import { Op } from "sequelize";
-import { Muestra, Usuario } from "../models/index.js";
+import { Muestra, Usuario, Variacion } from "../models/index.js";
 import { FotoRepository } from "../repositories/foto.repository.js";
 
 const ORIGENES_VALIDOS = new Set(["camara", "archivo"]);
@@ -25,7 +25,7 @@ export class FotoService {
     if (!muestraid) {
       throw new HttpError(400, "muestraid es obligatorio");
     }
-    await this.validateMuestraExists(muestraid);
+    await this.validateOwnerExists(muestraid);
     await this.validateUsuarioExists(usuarioid);
     return this.repository.findAll({ muestraid, usuarioid });
   }
@@ -44,7 +44,7 @@ export class FotoService {
     }
     this.validateRequiredFields(payload);
     payload.origen = this.validateOrigen(payload.origen);
-    await this.validateMuestraExists(payload.muestraid);
+    await this.validateOwnerExists(payload.muestraid);
     await this.validateUsuarioExists(payload.usuarioid);
 
     if (payload.orden !== undefined && payload.orden !== null) {
@@ -70,7 +70,7 @@ export class FotoService {
     }
 
     if (payload.muestraid !== undefined) {
-      await this.validateMuestraExists(payload.muestraid);
+      await this.validateOwnerExists(payload.muestraid);
     }
 
     if (payload.usuarioid !== undefined) {
@@ -92,7 +92,7 @@ export class FotoService {
       throw new HttpError(400, "orderedIds debe ser un arreglo no vacío");
     }
 
-    await this.validateMuestraExists(muestraid);
+    await this.validateOwnerExists(muestraid);
     await this.validateUsuarioExists(usuarioid);
 
     try {
@@ -230,12 +230,12 @@ export class FotoService {
     return n;
   }
 
-  async validateMuestraExists(muestraid) {
-    const muestra = await Muestra.findByPk(muestraid);
-    if (!muestra) {
-      throw new HttpError(404, `Muestra con id ${muestraid} no existe`);
+  async validateOwnerExists(muestraid) {
+    const owner = (await Muestra.findByPk(muestraid)) ?? (await Variacion.findByPk(muestraid));
+    if (!owner) {
+      throw new HttpError(404, `Muestra o variación con id ${muestraid} no existe`);
     }
-    return muestra;
+    return owner;
   }
 
   async validateUsuarioExists(usuarioid) {
