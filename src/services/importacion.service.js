@@ -1,5 +1,6 @@
 import XLSX from 'xlsx';
 import { Op } from 'sequelize';
+import { sequelize as dbSequelize } from '../config/database.js';
 import {
   Cliente,
   Disenador,
@@ -7,6 +8,7 @@ import {
   Muestra,
   Presentacion,
   Produccion,
+  Usuario,
   Variacion,
   Ubicacion,
 } from '../models/index.js';
@@ -127,15 +129,38 @@ const esValorLicenciaActivo = (value) => {
   return true;
 };
 
+const igualCaseInsensitive = (campo, valor) =>
+  dbSequelize.where(dbSequelize.fn('LOWER', dbSequelize.col(campo)), String(valor || '').trim().toLowerCase());
+
 const determinarEstadoMuestraAprobaciones = (aprobadas, ok) => {
   const tieneAprobadas = Number(aprobadas) > 0;
   const tieneOk = String(ok || '').trim().toUpperCase() === 'OK';
 
-  if (tieneAprobadas && tieneOk) {
+  if (tieneOk && tieneAprobadas) {
     return 'aprobada';
   }
 
-  return 'presentada';
+  if (tieneOk) {
+    return 'presentada';
+  }
+
+  return 'pendiente';
+};
+
+const nombreDisenadorDefecto = 'S/N diseñador';
+
+const obtenerOCrearDisenadorConDefecto = async (nombre) => {
+  const disenador = await obtenerOCrearDisenador(nombre);
+  if (disenador) {
+    return disenador;
+  }
+
+  return obtenerOCrearDisenador(nombreDisenadorDefecto);
+};
+
+const construirReferenciaVariacion = (referenciaBase, numeroVariacion) => {
+  const refBase = String(referenciaBase || '').trim();
+  return `${refBase} V${numeroVariacion}`;
 };
 
 const separarReferenciaYDetalle = (refRaw) => {
@@ -167,7 +192,7 @@ export const obtenerOCrearCliente = async (nombre) => {
   // Buscar cliente existente (case-insensitive)
   let cliente = await Cliente.findOne({
     where: {
-      nombre: { [Op.iLike]: nombreLimpio },
+      [Op.and]: [igualCaseInsensitive('nombre', nombreLimpio)],
     },
   });
 
@@ -196,7 +221,7 @@ export const obtenerOCrearUsuario = async (nombre, rol = 'diseñador') => {
   // Buscar usuario existente
   let usuario = await Usuario.findOne({
     where: {
-      nombre: { [Op.iLike]: nombreLimpio },
+      [Op.and]: [igualCaseInsensitive('nombre', nombreLimpio)],
     },
   });
 
@@ -228,7 +253,7 @@ export const obtenerOCrearDisenador = async (nombre) => {
   // Buscar diseñador existente
   let disenador = await Disenador.findOne({
     where: {
-      nombre: { [Op.iLike]: nombreLimpio },
+      [Op.and]: [igualCaseInsensitive('nombre', nombreLimpio)],
     },
   });
 
@@ -278,7 +303,7 @@ export const obtenerOCrearMolderia = async (nombre, molderiaNueva, marca) => {
   // Buscar moldería existente
   let molderia = await Molderia.findOne({
     where: {
-      nombre: { [Op.iLike]: nombreLimpio },
+      [Op.and]: [igualCaseInsensitive('nombre', nombreLimpio)],
     },
   });
 
@@ -327,7 +352,7 @@ export const obtenerOCrearMuestra = async (
   // Buscar muestra existente por referencia
   let muestra = await Muestra.findOne({
     where: {
-      referencia: { [Op.iLike]: refLimpia },
+      [Op.and]: [igualCaseInsensitive('referencia', refLimpia)],
     },
   });
 
@@ -466,7 +491,7 @@ export const importarBaseDis = async (filePath) => {
       }
 
       // Obtener o crear Diseñador
-      const disenador = await obtenerOCrearDisenador(String(registro.disenador || ''));
+      const disenador = await obtenerOCrearDisenadorConDefecto(String(registro.disenador || ''));
       if (!disenador) {
         const error = `Orden ${registro.orden}: Diseñador inválido (${registro.disenador})`;
         console.log(`   ❌ ${error}`);
@@ -576,7 +601,7 @@ export const importarBaseDis = async (filePath) => {
       }
 
       // Obtener o crear Diseñador
-      const disenador = await obtenerOCrearDisenador(String(registro.disenador || ''));
+      const disenador = await obtenerOCrearDisenadorConDefecto(String(registro.disenador || ''));
       if (!disenador && !muestraOriginal?.disenadorid) {
         const error = `Variación ${orden}: Diseñador inválido (${registro.disenador})`;
         console.log(`   ❌ ${error}`);
@@ -610,16 +635,23 @@ export const importarBaseDis = async (filePath) => {
       // Crear muestra como variación
       const variacionExiste = await Variacion.findOne({
         where: {
-          referencia: { [Op.iLike]: ref },
           muestraOriginalId: muestraOriginalId,
+          orden,
         },
       });
 
       if (!variacionExiste) {
+        const totalVariaciones = await Variacion.count({
+          where: { muestraOriginalId },
+        });
+        const referenciaVariacion = construirReferenciaVariacion(
+          muestraOriginal.referencia,
+          totalVariaciones + 1
+        );
         const licenciaVariacion = String(registro.licencia || muestraOriginal.licencia || '').trim() || null;
 
         await Variacion.create({
-          referencia: ref,
+          referencia: referenciaVariacion,
           orden,
           segmento: registro.segmento || muestraOriginal.segmento || 'SIN SEGMENTO',
           licencia: licenciaVariacion,
@@ -792,6 +824,9 @@ export const importarAprobaciones = async (filePath) => {
         const cliente = String(valorPorAlias(registro, mapaColumnas, ['CLIENTE']) || '').trim();
         const licencia = valorPorAlias(registro, mapaColumnas, ['LICENCIA']);
         const fechaMuestra = valorPorAlias(registro, mapaColumnas, ['FECHA MUESTRA']);
+        // Algunas versiones del Excel usan una columna separada para la fecha de producción
+        const fechaProduccionCol = valorPorAlias(registro, mapaColumnas, ['FECHA PRODUCCION', 'FECHA PRODUCCIÓN', 'FECHA PRODUCION', 'FECHA PRODUC', 'FECHA']);
+        const fechaProduccion = fechaProduccionCol || fechaMuestra;
         const aprobadasRaw = valorPorAlias(registro, mapaColumnas, [
           'APROBADAS', 'PARES APROBADOS', 'PARES', 'CANT APROBADAS', 'CANT', 'PRODUCCION', 'PARES PRODUCIDOS',
         ]);
@@ -803,10 +838,13 @@ export const importarAprobaciones = async (filePath) => {
           console.log(`🔍 Fila ${procesadosHoja}: REF=${ref} | OK_RAW="${registro[okIndex]}" | APROBADAS_RAW="${aprobadasRaw}" | aprobadas=${aprobadas} | ok="${ok}"`);
         }
         const observaciones = String(observIndex !== undefined ? registro[observIndex] : '').trim();
-        // Si observación contiene "baja", fuerza el estado
-        const estadoMuestra = observaciones.toLowerCase().includes('baja')
+        const observacionesNormalizadas = observaciones.toLowerCase();
+        const estadoMuestra = observacionesNormalizadas.includes('baja')
           ? 'dada de baja'
           : determinarEstadoMuestraAprobaciones(aprobadas, ok);
+        const estadoSinCruce = observacionesNormalizadas.includes('baja')
+          ? 'dada de baja'
+          : 'no presentado';
 
         if (!ref) continue;
 
@@ -814,13 +852,13 @@ export const importarAprobaciones = async (filePath) => {
 
         // Obtener o crear entidades relacionadas
         let clienteRecord = await obtenerOCrearCliente(cliente);
-        const disenadorRecord = await obtenerOCrearDisenador(diseñador);
+        const disenadorRecord = await obtenerOCrearDisenadorConDefecto(diseñador);
         const molderiaRecord = await obtenerOCrearMolderia(modelo, false, null);
         const ubicacion = await obtenerOCrearUbicacionImportacion();
 
         // Buscar la Muestra existente
         let muestra = await Muestra.findOne({
-          where: { referencia: { [Op.iLike]: ref } },
+          where: { [Op.and]: [igualCaseInsensitive('referencia', ref)] },
         });
 
         if (!muestra) {
@@ -839,7 +877,7 @@ export const importarAprobaciones = async (filePath) => {
             talla: null,
             pareselaborados: 0,
             fechaelaboracion: new Date().toISOString().slice(0, 10),
-            estado: estadoMuestra,
+            estado: estadoSinCruce,
             proceso: null,
             observaciones: observaciones || null,
             clienteid: clienteRecord.id,
@@ -896,7 +934,7 @@ export const importarAprobaciones = async (filePath) => {
           clientesPresentacion.push(clienteRecord);
         }
 
-        const resultadoEstado = ok === 'OK' ? 'aprobada' : 'pendiente';
+        const resultadoEstado = estadoMuestra;
         const mesActual = new Date().toLocaleString('es-ES', { month: 'long' });
 
         for (const cli of clientesPresentacion) {
@@ -931,7 +969,8 @@ export const importarAprobaciones = async (filePath) => {
                 clienteid: cli.id,
                 ordennumero: ref,
                 paresproducidos: aprobadas,
-                fechaproduccion: parsearFechaFlexible(fechaMuestra) || new Date(),
+                // Preferir columna explícita de fecha de producción, si existe
+                fechaproduccion: parsearFechaFlexible(fechaProduccion) || parsearFechaFlexible(fechaMuestra) || new Date(),
                 mes: mesActual,
               });
               console.log(`✅ Producción creada: ${ref} para ${cli.nombre} con ${aprobadas} pares`);
@@ -939,7 +978,7 @@ export const importarAprobaciones = async (filePath) => {
               // Actualizar con el dato real de Aprobaciones
               await produccionExiste.update({
                 paresproducidos: aprobadas,
-                fechaproduccion: parsearFechaFlexible(fechaMuestra) || produccionExiste.fechaproduccion,
+                fechaproduccion: parsearFechaFlexible(fechaProduccion) || parsearFechaFlexible(fechaMuestra) || produccionExiste.fechaproduccion,
                 mes: mesActual,
               });
               console.log(`🔄 Producción actualizada: ${ref} para ${cli.nombre} → ${aprobadas} pares`);
@@ -999,8 +1038,8 @@ const reconciliarEstadosPendientes = async (referenciasBaseDis = [], referencias
   let actualizadas = 0;
   for (const muestra of muestras) {
     if (!refsAprobadas.has(String(muestra.referencia || '').trim())) {
-      if (String(muestra.estado || '').trim().toLowerCase() !== 'pendiente') {
-        await muestra.update({ estado: 'pendiente' });
+      if (String(muestra.estado || '').trim().toLowerCase() !== 'no presentado') {
+        await muestra.update({ estado: 'no presentado' });
         actualizadas++;
       }
     }
@@ -1040,7 +1079,7 @@ export const importarTodos = async (baseDisPath, aprobacionesPath) => {
       refsAprobaciones = refsProcesadas;
     }
 
-    if (refsBaseDis.length) {
+    if (refsBaseDis.length && aprobacionesPath) {
       resultados.reconciliacion = await reconciliarEstadosPendientes(
         refsBaseDis,
         refsAprobaciones,

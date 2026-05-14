@@ -117,27 +117,35 @@ export const startServer = async () => {
   try {
     await connectDb();
 
+    const queryInterface = sequelize.getQueryInterface();
+    const fotosTableExists = await queryInterface.tableExists("fotos");
+    const presentacionesTableExists = await queryInterface.tableExists("presentaciones");
+
     // Eliminar FK constraints ANTES de sincronizar, para que Sequelize no las recree
-    try {
-      await sequelize.query(
-        `ALTER TABLE fotos DROP CONSTRAINT IF EXISTS fotos_muestraid_fkey;`
-      );
-      console.log("FK constraint removida de fotos.muestraid (preemptive)");
-    } catch (fkError) {
-      console.warn("No se pudo remover FK constraint de fotos:", fkError.message);
+    if (fotosTableExists) {
+      try {
+        await sequelize.query(
+          `ALTER TABLE fotos DROP CONSTRAINT IF EXISTS fotos_muestraid_fkey;`
+        );
+        console.log("FK constraint removida de fotos.muestraid (preemptive)");
+      } catch (fkError) {
+        console.warn("No se pudo remover FK constraint de fotos:", fkError.message);
+      }
     }
 
     // presentaciones.muestraid puede apuntar a muestras O variaciones → sin FK en BD
-    try {
-      await sequelize.query(
-        `ALTER TABLE presentaciones DROP CONSTRAINT IF EXISTS "presentaciones_muestraid_fkey";`
-      );
-      console.log("FK constraint removida de presentaciones.muestraid (preemptive)");
-    } catch (fkError) {
-      console.warn("No se pudo remover FK constraint de presentaciones:", fkError.message);
+    if (presentacionesTableExists) {
+      try {
+        await sequelize.query(
+          `ALTER TABLE presentaciones DROP CONSTRAINT IF EXISTS "presentaciones_muestraid_fkey";`
+        );
+        console.log("FK constraint removida de presentaciones.muestraid (preemptive)");
+      } catch (fkError) {
+        console.warn("No se pudo remover FK constraint de presentaciones:", fkError.message);
+      }
     }
 
-    await syncModels();
+    await syncModels({ seedUsers: true });
 
     app.listen(PORT, () => {
       console.log(`Servidor corriendo en puerto ${PORT}`);

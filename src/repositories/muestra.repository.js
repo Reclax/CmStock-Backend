@@ -1,4 +1,5 @@
-import { Op } from "sequelize";
+import { Op, where as seqWhere, fn, col } from "sequelize";
+import { sequelize } from "../config/database.js";
 import {
   Cliente,
   Molderia,
@@ -49,12 +50,10 @@ export class MuestraRepository {
     }
 
     if (filters.estado) {
-      // Filtro explícito: muestra exactamente el estado pedido (incluido dada_de_baja)
+      // Filtro explícito: muestra exactamente el estado pedido
       where.estado = { [Op.iLike]: filters.estado };
-    } else {
-      // Sin filtro: ocultar las dadas de baja por defecto
-      where.estado = { [Op.ne]: "dada_de_baja" };
     }
+    // Sin filtro de estado: mostrar TODOS los estados (incluyendo dada de baja)
 
     if (filters.licenciado !== undefined) {
       where.licenciado = filters.licenciado;
@@ -98,8 +97,17 @@ export class MuestraRepository {
         where.fechaelaboracion[Op.gte] = filters.fechadesde;
       }
       if (filters.fechahasta) {
-        where.fechaelaboracion[Op.lte] = filters.fechahasta;
+        // Incluir todo el día final
+        where.fechaelaboracion[Op.lte] = filters.fechahasta + "T23:59:59";
       }
+    }
+
+    if (filters.mes) {
+      // Filtra por número de mes (1-12) sin importar el año
+      where[Op.and] = [
+        ...(where[Op.and] || []),
+        seqWhere(fn("EXTRACT", sequelize.literal(`MONTH FROM "fechaelaboracion"`)), filters.mes),
+      ];
     }
 
     if (filters.tipomodelo) {
@@ -212,7 +220,7 @@ export class MuestraRepository {
         where: { "$producciones.id$": null },
         distinct: true,
       }),
-      Muestra.count({ where: { estado: "dada_de_baja" } }),
+      Muestra.count({ where: { estado: "dada de baja" } }),
     ]);
 
     return {

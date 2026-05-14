@@ -27,6 +27,7 @@ export const getMuestras = async (req, res) => {
       region: req.query.region,
       fechadesde: req.query.fechadesde,
       fechahasta: req.query.fechahasta,
+      mes: req.query.mes ? Number(req.query.mes) : undefined,
       page: req.query.page,
       limit: req.query.limit,
     };
