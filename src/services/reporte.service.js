@@ -214,7 +214,7 @@ export class ReporteService {
         distinct: true,
       }),
       Muestra.count({ where: { estado: "reutilizable" } }),
-      Muestra.count({ where: { estado: "dada_de_baja" } }),
+      Muestra.count({ where: { estado: "dada de baja" } }),
     ]);
 
     return {

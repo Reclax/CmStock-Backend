@@ -18,7 +18,7 @@ const ESTADOS_VALIDOS = new Set([
   "aprobada",
   "rechazada",
   "reutilizable",
-  "dada_de_baja",
+  "dada de baja",
 ]);
 
 class HttpError extends Error {
@@ -280,7 +280,7 @@ export class MuestraService {
     const detalle = motivo ? `Baja: ${motivo}` : "Baja: sin motivo";
 
     return this.repository.update(muestra, {
-      estado: "dada_de_baja",
+      estado: "dada de baja",
       observaciones: `${observacionesPrevias}${detalle}`,
     });
   }
@@ -405,7 +405,7 @@ export class MuestraService {
     if (!ESTADOS_VALIDOS.has(estadoNormalizado)) {
       throw new HttpError(
         400,
-        "Estado invalido. Valores permitidos: nueva, presentada, aprobada, rechazada, reutilizable, dada_de_baja"
+        "Estado invalido. Valores permitidos: nueva, presentada, aprobada, rechazada, reutilizable, dada de baja"
       );
     }
 
