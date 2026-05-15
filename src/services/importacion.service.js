@@ -147,7 +147,26 @@ const determinarEstadoMuestraAprobaciones = (aprobadas, ok) => {
   return 'pendiente';
 };
 
+const determinarEstadoPorObservacion = (observaciones = '') => {
+  const texto = String(observaciones || '').toLowerCase();
+
+  if (texto.includes('baja')) {
+    return 'dada de baja';
+  }
+
+  if (texto.includes('reutilizable')) {
+    return 'reutilizable';
+  }
+
+  if (texto.includes('rechazada')) {
+    return 'rechazada';
+  }
+
+  return null;
+};
+
 const nombreDisenadorDefecto = 'S/N diseñador';
+const nombreMolderiaDefecto = 'corregir campo';
 
 const obtenerOCrearDisenadorConDefecto = async (nombre) => {
   const disenador = await obtenerOCrearDisenador(nombre);
@@ -296,9 +315,7 @@ export const obtenerOCrearUbicacionImportacion = async () => {
  * Obtener o crear Moldería
  */
 export const obtenerOCrearMolderia = async (nombre, molderiaNueva, marca) => {
-  if (!nombre || nombre.trim() === '') return null;
-
-  const nombreLimpio = nombre.trim();
+  const nombreLimpio = String(nombre || '').trim() || nombreMolderiaDefecto;
 
   // Buscar moldería existente
   let molderia = await Molderia.findOne({
@@ -708,16 +725,15 @@ export const importarAprobaciones = async (filePath) => {
 
   const workbook = XLSX.readFile(filePath);
 
-  // Detectar hojas válidas (INDIC-DIS1, INDIC-DIS2, o cualquier hoja con estructura similar)
-  const hojasPermitidas = ['INDIC-DIS1', 'INDIC-DIS2'];
+  // Detectar hojas válidas (INDIC_DIS1..5, INDIC-DIS1..5, o cualquier variante equivalente)
   const hojasAProcesar = workbook.SheetNames.filter((name) =>
-    hojasPermitidas.includes(name)
+    /^INDIC[\s_-]?DIS[1-5]$/i.test(String(name || '').trim())
   );
 
   // Si no hay hojas específicas, intentar con la primera disponible
   if (hojasAProcesar.length === 0 && workbook.SheetNames.length > 0) {
     hojasAProcesar.push(workbook.SheetNames[0]);
-    console.log(`⚠️  No se encontraron INDIC-DIS1 o INDIC-DIS2, usando hoja: ${workbook.SheetNames[0]}`);
+    console.log(`⚠️  No se encontraron hojas INDIC_DIS1..5, usando hoja: ${workbook.SheetNames[0]}`);
   }
 
   if (hojasAProcesar.length === 0) {
@@ -746,11 +762,12 @@ export const importarAprobaciones = async (filePath) => {
     // Detectar fila de encabezados en base a columnas clave
     const headerRowIndex = datos.findIndex((row) => {
       const rowNorm = row.map((c) => normalizarCabecera(c));
+      const tieneCliente = rowNorm.some((col) => col === 'CLIENTE' || /^CLIENTE ?[1-3]$/.test(col));
       return (
         rowNorm.includes('REF') &&
         rowNorm.includes('DISENADOR') &&
         rowNorm.includes('MODELO') &&
-        rowNorm.includes('CLIENTE')
+        tieneCliente
       );
     });
 
@@ -770,7 +787,7 @@ export const importarAprobaciones = async (filePath) => {
     // CLIENTE principal + CLIENTE 1/2/3 en el mismo bloque
     const clienteColumnas = headerRow
       .map((h, i) => ({ key: normalizarCabecera(h), i }))
-      .filter((entry) => entry.key === 'CLIENTE' || entry.key.startsWith('CLIENTE '))
+      .filter((entry) => entry.key === 'CLIENTE' || /^CLIENTE ?[1-3]$/.test(entry.key))
       .map((entry) => entry.i);
 
     const registros = datos
@@ -822,6 +839,9 @@ export const importarAprobaciones = async (filePath) => {
         const modelo = String(valorPorAlias(registro, mapaColumnas, ['MODELO']) || '').trim();
         const genero = String(valorPorAlias(registro, mapaColumnas, ['GENERO']) || '').trim();
         const cliente = String(valorPorAlias(registro, mapaColumnas, ['CLIENTE']) || '').trim();
+        const cliente1 = String(valorPorAlias(registro, mapaColumnas, ['CLIENTE 1', 'CLIENTE1']) || '').trim();
+        const cliente2 = String(valorPorAlias(registro, mapaColumnas, ['CLIENTE 2', 'CLIENTE2']) || '').trim();
+        const cliente3 = String(valorPorAlias(registro, mapaColumnas, ['CLIENTE 3', 'CLIENTE3']) || '').trim();
         const licencia = valorPorAlias(registro, mapaColumnas, ['LICENCIA']);
         const fechaMuestra = valorPorAlias(registro, mapaColumnas, ['FECHA MUESTRA']);
         // Algunas versiones del Excel usan una columna separada para la fecha de producción
@@ -832,26 +852,43 @@ export const importarAprobaciones = async (filePath) => {
         ]);
         const aprobadas = parseInt(aprobadasRaw) || 0;
         const ok = String(okIndex !== undefined ? registro[okIndex] : '').trim().toUpperCase();
+        const tieneClientesEspecificos = [cliente1, cliente2, cliente3].some(Boolean);
 
         // Log de diagnóstico primeras 3 filas
         if (procesadosHoja <= 3) {
           console.log(`🔍 Fila ${procesadosHoja}: REF=${ref} | OK_RAW="${registro[okIndex]}" | APROBADAS_RAW="${aprobadasRaw}" | aprobadas=${aprobadas} | ok="${ok}"`);
         }
         const observaciones = String(observIndex !== undefined ? registro[observIndex] : '').trim();
-        const observacionesNormalizadas = observaciones.toLowerCase();
-        const estadoMuestra = observacionesNormalizadas.includes('baja')
-          ? 'dada de baja'
-          : determinarEstadoMuestraAprobaciones(aprobadas, ok);
-        const estadoSinCruce = observacionesNormalizadas.includes('baja')
-          ? 'dada de baja'
-          : 'no presentado';
+        const estadoPorObservacion = determinarEstadoPorObservacion(observaciones);
+        const tieneCliente1 = String(cliente1 || '').trim() !== '';
+        const refPresente = String(ref || '').trim() !== '';
+        const aprobadasVacia = String(aprobadasRaw || '').trim() === '';
+
+        let estadoMuestra;
+        if (estadoPorObservacion) {
+          estadoMuestra = estadoPorObservacion;
+        } else if (!aprobadasVacia && aprobadas > 0 && ok === 'OK') {
+          // aprobadas llenas + OK => aprobada
+          estadoMuestra = 'aprobada';
+        } else if (aprobadasVacia && tieneCliente1) {
+          // aprobadas vacía y cliente1 presente => presentada
+          estadoMuestra = 'presentada';
+        } else if (aprobadasVacia && !refPresente && !tieneClientesEspecificos) {
+          // aprobadas vacía + sin ref + sin clientes => pendiente
+          estadoMuestra = 'pendiente';
+        } else {
+          // fallback a la lógica previa
+          estadoMuestra = determinarEstadoMuestraAprobaciones(aprobadas, ok);
+        }
+        const estadoSinCruce = estadoPorObservacion || 'no presentado';
 
         if (!ref) continue;
 
         refsProcesadas.add(ref);
 
         // Obtener o crear entidades relacionadas
-        let clienteRecord = await obtenerOCrearCliente(cliente);
+        const clientePrincipal = cliente || cliente1 || cliente2 || cliente3;
+        let clienteRecord = await obtenerOCrearCliente(clientePrincipal);
         const disenadorRecord = await obtenerOCrearDisenadorConDefecto(diseñador);
         const molderiaRecord = await obtenerOCrearMolderia(modelo, false, null);
         const ubicacion = await obtenerOCrearUbicacionImportacion();
@@ -877,7 +914,7 @@ export const importarAprobaciones = async (filePath) => {
             talla: null,
             pareselaborados: 0,
             fechaelaboracion: new Date().toISOString().slice(0, 10),
-            estado: estadoSinCruce,
+            estado: estadoMuestra,
             proceso: null,
             observaciones: observaciones || null,
             clienteid: clienteRecord.id,

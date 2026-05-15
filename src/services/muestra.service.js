@@ -13,6 +13,7 @@ import { MuestraRepository } from "../repositories/muestra.repository.js";
 
 const ESTADOS_VALIDOS = new Set([
   "nueva",
+  "no presentado",
   "pendiente",
   "presentada",
   "aprobada",
@@ -405,7 +406,7 @@ export class MuestraService {
     if (!ESTADOS_VALIDOS.has(estadoNormalizado)) {
       throw new HttpError(
         400,
-        "Estado invalido. Valores permitidos: nueva, presentada, aprobada, rechazada, reutilizable, dada de baja"
+        "Estado invalido. Valores permitidos: nueva, no presentado, pendiente, presentada, aprobada, rechazada, reutilizable, dada de baja"
       );
     }
 

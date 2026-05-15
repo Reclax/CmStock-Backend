@@ -62,7 +62,7 @@ describe("Importacion service", () => {
     crearArchivoExcel(filePath, {
       BASES: [
         ["ORDEN N", "REF", "CLIENTE", "DISEÑADOR", "MOLDERIA", "SEGMENTO", "LICENCIA", "DIMA", "TALLA", "PARES", "CREACIÓN", "PROCESO", "OBSERVACIONES"],
-        ["1001", "LLI-0987", "Cliente Uno", "", "Molderia Uno", "SEG-1", "", "", "40", "10", "2026-01-05", "", ""],
+        ["1001", "LLI-0987", "Cliente Uno", "", "", "SEG-1", "", "", "40", "10", "2026-01-05", "", ""],
         ["A1", "LLI-0987", "Cliente Uno", "", "", "SEG-1", "", "", "40", "2", "2026-01-06", "", "Primera variacion"],
         ["B1", "LLI-0987", "Cliente Uno", "", "", "SEG-1", "", "", "40", "3", "2026-01-07", "", "Segunda variacion"],
       ],
@@ -82,6 +82,10 @@ describe("Importacion service", () => {
     expect(disenador).to.exist;
     expect(muestra.disenadorid).to.equal(disenador.id);
 
+    const molderia = await Molderia.findOne({ where: { nombre: "corregir campo" } });
+    expect(molderia).to.exist;
+    expect(muestra.molderiaid).to.equal(molderia.id);
+
     const variaciones = await Variacion.findAll({
       where: { muestraOriginalId: muestra.id },
       order: [["createdat", "ASC"]],
@@ -92,7 +96,7 @@ describe("Importacion service", () => {
     expect(variaciones[1].referencia).to.equal("LLI-0987 V2");
   });
 
-  it("Aprobaciones marca presentada, aprobada y no presentado segun el cruce y los pares aprobados", async () => {
+  it("Aprobaciones procesa INDIC_DIS1..5 y aplica presentada, aprobada y pendiente segun las nuevas reglas", async () => {
     const baseDir = crearTempDir();
     const baseFilePath = path.join(baseDir, "base-dis.xlsx");
     crearArchivoExcel(baseFilePath, {
@@ -107,11 +111,17 @@ describe("Importacion service", () => {
     const aprobacionesDir = crearTempDir();
     const aprobacionesFilePath = path.join(aprobacionesDir, "aprobaciones.xlsx");
     crearArchivoExcel(aprobacionesFilePath, {
-      "INDIC-DIS2": [
-        ["REF", "DISEÑADOR", "MODELO", "CLIENTE", "OK", "APROBADAS", "OBSERV"],
-        ["ABC-100", "", "Molderia Base", "Cliente Base", "OK", "", ""],
-        ["ABC-200", "", "Modelo Nuevo", "Cliente Nuevo", "OK", "7", ""],
-        ["ABC-300", "", "Modelo Nuevo", "Cliente Nuevo", "", "", ""],
+      "INDIC_DIS1": [
+        ["REF", "DISEÑADOR", "MODELO", "CLIENTE", "CLIENTE 1", "CLIENTE 2", "CLIENTE 3", "OK", "APROBADAS", "OBSERV"],
+        ["ABC-100", "", "Molderia Base", "", "Cliente Base", "", "", "", "", ""],
+        ["ABC-200", "", "Modelo Nuevo", "Cliente Nuevo", "", "", "", "OK", "7", ""],
+        ["ABC-300", "", "Modelo Nuevo", "Cliente Nuevo", "", "", "", "", "", ""],
+      ],
+      "INDIC_DIS5": [
+        ["REF", "DISEÑADOR", "MODELO", "CLIENTE", "CLIENTE 1", "CLIENTE 2", "CLIENTE 3", "OK", "APROBADAS", "OBSERV"],
+        ["ABC-400", "", "Modelo Extra", "Cliente Extra", "", "", "", "OK", "4", ""],
+        ["ABC-500", "", "Modelo Extra", "Cliente Extra", "", "", "", "", "", "reutilizable"],
+        ["ABC-600", "", "Modelo Extra", "Cliente Extra", "", "", "", "", "", "rechazada por calidad"],
       ],
     });
 
@@ -127,14 +137,23 @@ describe("Importacion service", () => {
     expect(presentacionPresentada.derivoproduccion).to.equal(false);
 
     const muestraAprobada = await Muestra.findOne({ where: { referencia: "ABC-200" } });
-    expect(muestraAprobada.estado).to.equal("no presentado");
+    expect(muestraAprobada.estado).to.equal("aprobada");
 
     const presentacionAprobada = await Presentacion.findOne({ where: { muestraid: muestraAprobada.id } });
     expect(presentacionAprobada.resultado).to.equal("aprobada");
     expect(presentacionAprobada.derivoproduccion).to.equal(true);
 
     const muestraSinCruce = await Muestra.findOne({ where: { referencia: "ABC-300" } });
-    expect(muestraSinCruce.estado).to.equal("no presentado");
+    expect(muestraSinCruce.estado).to.equal("pendiente");
+
+    const muestraHoja5 = await Muestra.findOne({ where: { referencia: "ABC-400" } });
+    expect(muestraHoja5.estado).to.equal("aprobada");
+
+    const muestraReutilizable = await Muestra.findOne({ where: { referencia: "ABC-500" } });
+    expect(muestraReutilizable.estado).to.equal("reutilizable");
+
+    const muestraRechazada = await Muestra.findOne({ where: { referencia: "ABC-600" } });
+    expect(muestraRechazada.estado).to.equal("rechazada");
   });
 
   it("Importacion masiva marca no presentado en refs de BASE DIS ausentes en Aprobaciones", async () => {
