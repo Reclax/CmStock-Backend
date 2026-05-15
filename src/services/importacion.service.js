@@ -598,55 +598,57 @@ export const importarBaseDis = async (filePath) => {
         .filter(Boolean)
         .join(' | ');
 
-      if (!muestrasOriginales.has(ref)) {
+      // Buscar muestra original: primero en muestrasOriginales (Bloque 1), luego en la BD
+      let muestraOriginal = muestrasOriginales.has(ref) ? muestrasOriginales.get(ref) : null;
+      
+      if (!muestraOriginal) {
+        // Buscar muestra en la BD por referencia (para importar Excel de años anteriores)
+        muestraOriginal = await Muestra.findOne({
+          where: { referencia: ref },
+        });
+      }
+
+      if (!muestraOriginal) {
         const error = `Variación ${orden}: No se encontró muestra original para REF=${ref}`;
         console.log(`⚠️  ${error}`);
         errores.push(error);
         continue;
       }
 
-      const muestraOriginal = muestrasOriginales.get(ref);
       const muestraOriginalId = muestraOriginal.id;
 
-      // Obtener o crear Cliente
-      const cliente = await obtenerOCrearCliente(String(registro.cliente || ''));
-      if (!cliente && !muestraOriginal?.clienteid) {
-        const error = `Variación ${orden}: Cliente inválido (${registro.cliente})`;
-        console.log(`   ❌ ${error}`);
-        errores.push(error);
-        continue;
+      // Para variaciones de muestras existentes: usar datos del Excel si vienen,
+      // si no, heredar de la muestra original
+      let clienteid = muestraOriginal.clienteid;
+      let disenadorid = muestraOriginal.disenadorid;
+      let molderiaid = muestraOriginal.molderiaid;
+
+      // Intentar obtener cliente del Excel si viene especificado
+      if (registro.cliente) {
+        const cliente = await obtenerOCrearCliente(String(registro.cliente || ''));
+        if (cliente) {
+          clienteid = cliente.id;
+        }
       }
 
-      // Obtener o crear Diseñador
-      const disenador = await obtenerOCrearDisenadorConDefecto(String(registro.disenador || ''));
-      if (!disenador && !muestraOriginal?.disenadorid) {
-        const error = `Variación ${orden}: Diseñador inválido (${registro.disenador})`;
-        console.log(`   ❌ ${error}`);
-        errores.push(error);
-        continue;
+      // Intentar obtener diseñador del Excel si viene especificado
+      if (registro.disenador) {
+        const disenador = await obtenerOCrearDisenadorConDefecto(String(registro.disenador || ''));
+        if (disenador) {
+          disenadorid = disenador.id;
+        }
       }
 
-      // Obtener o crear Moldería.
-      // Si en la variación no viene moldería, heredamos la de la muestra original.
-      let molderia = null;
-      const nombreMolderia = String(registro.molderia || '').trim();
-
-      if (nombreMolderia) {
-        molderia = await obtenerOCrearMolderia(
-          nombreMolderia,
+      // Intentar obtener moldería del Excel si viene especificada
+      if (registro.molderia) {
+        const molderia = await obtenerOCrearMolderia(
+          String(registro.molderia || ''),
           registro.molderiaNueva,
           registro.marca
         );
-      } else if (muestraOriginal?.molderiaid) {
-        molderia = { id: muestraOriginal.molderiaid };
-        console.log(`ℹ️  Variación ${orden}: moldería heredada de muestra original (${muestraOriginal.molderiaid})`);
-      }
-
-      if (!molderia) {
-        const error = `Variación ${orden}: Moldería inválida (${registro.molderia})`;
-        console.log(`   ❌ ${error}`);
-        errores.push(error);
-        continue;
+        if (molderia) {
+          molderiaid = molderia.id;
+        }
       }
 
       // Crear muestra como variación
@@ -683,9 +685,9 @@ export const importarBaseDis = async (filePath) => {
           estado: 'variacion',
           proceso: registro.proceso || muestraOriginal.proceso || null,
           observaciones: observacionVariacion || null,
-          clienteid: cliente?.id || muestraOriginal.clienteid,
-          disenadorid: disenador?.id || muestraOriginal.disenadorid,
-          molderiaid: molderia.id,
+          clienteid: clienteid,
+          disenadorid: disenadorid,
+          molderiaid: molderiaid,
           ubicacionid: ubicacion.id || muestraOriginal.ubicacionid,
           codigoqr: null,
           codigobarras: null,
