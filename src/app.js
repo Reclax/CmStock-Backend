@@ -32,15 +32,29 @@ const uploadsPath = path.resolve(__dirname, "../uploads");
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 
+const staticAllowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://127.0.0.1:3001",
+  "https://rasheeda-nonexplorative-thickly.ngrok-free.dev",
+  "https://09nk4wg0-5173.use2.devtunnels.ms",
+];
+
+const devtunnelOriginRegex = /^https:\/\/[a-z0-9-]+-(3000|5173)\.use2\.devtunnels\.ms$/i;
+
+const isAllowedOrigin = (origin) =>
+  !origin || staticAllowedOrigins.includes(origin) || devtunnelOriginRegex.test(origin);
+
 // Configuración de CORS
 const corsOptions = {
-  origin: [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1:3001",
-    "https://rasheeda-nonexplorative-thickly.ngrok-free.dev",
-    "https://09nk4wg0-5173.use2.devtunnels.ms"
-  ],
+  origin: (origin, callback) => {
+    if (isAllowedOrigin(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error("Origen no permitido por CORS"));
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
@@ -51,7 +65,8 @@ const swaggerDocument = buildOpenApiDocument({
 });
 
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use("/uploads", express.static(uploadsPath));
 
 // Rutas públicas (sin autenticación)
@@ -111,6 +126,45 @@ app.get("/api-docs", (req, res) => {
 
 app.get("/", (req, res) => {
   res.send("API CM Stock funcionando");
+});
+
+// ── Manejador global de errores (debe ir DESPUÉS de todas las rutas) ───────────
+// Propósito: cuando multer, auth u otro middleware lanza un error (ej: 413 por
+// archivo demasiado grande), Express devuelve la respuesta de error SIN pasar
+// por el middleware `cors()`, por lo que el navegador lo interpreta como un
+// error de CORS. Este handler adjunta los headers CORS manualmente.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  // Adjuntar header CORS al origen de la petición
+  const origin = req.headers.origin;
+  if (origin && isAllowedOrigin(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+
+  // Errores de multer por tamaño de archivo
+  if (err.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({
+      success: false,
+      message: `El archivo excede el tamaño máximo permitido (50 MB).`,
+    });
+  }
+
+  // Errores de multer por tipo de archivo
+  if (err.message && err.message.includes("Solo se permiten archivos Excel")) {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+
+  // Error genérico
+  const status = err.status || err.statusCode || 500;
+  console.error(`[Error ${status}]`, err.message || err);
+  return res.status(status).json({
+    success: false,
+    message: err.message || "Error interno del servidor",
+  });
 });
 
 export const startServer = async () => {
