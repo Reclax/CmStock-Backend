@@ -22,3 +22,4 @@ uploads/
 # Archivos de configuración específicos de editor
 .vscode/
 .idea/
+**/cloudflared.exe

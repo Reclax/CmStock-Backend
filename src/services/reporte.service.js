@@ -53,7 +53,7 @@ export class ReporteService {
     return data.map((item) => ({
       id: item.id,
       referencia: item.referencia,
-      modelo: item.modelo,
+      modelo: item.modelo || item.referencia || "",
       segmento: item.segmento,
       estado: item.estado,
       licenciado: item.licenciado,
@@ -88,7 +88,7 @@ export class ReporteService {
       where,
       include: [
         { model: Cliente, as: "cliente", attributes: ["nombre", "region"] },
-        { model: Muestra, as: "muestra", attributes: ["referencia", "modelo", "segmento"] },
+        { model: Muestra, as: "muestra", attributes: ["referencia", "segmento"] },
       ],
       order: [["fechaproduccion", "DESC"]],
     });
@@ -102,7 +102,7 @@ export class ReporteService {
       cliente: item.cliente?.nombre || "",
       region: item.cliente?.region || "",
       referencia: item.muestra?.referencia || "",
-      modelo: item.muestra?.modelo || "",
+      modelo: item.muestra?.referencia || "",
       segmento: item.muestra?.segmento || "",
     }));
   }
@@ -132,7 +132,7 @@ export class ReporteService {
 
   async getReporteInventario() {
     const muestras = await Muestra.findAll({
-      attributes: ["id", "referencia", "modelo", "pareselaborados", "estado"],
+      attributes: ["id", "referencia", "pareselaborados", "estado"],
       include: [
         { model: Ubicacion, as: "ubicacion", attributes: ["id", "nombre", "tipo"] },
         { model: MovimientoInventario, as: "movimientosInventario", attributes: ["tipo", "cantidad"] },
@@ -152,7 +152,7 @@ export class ReporteService {
       return {
         id: muestra.id,
         referencia: muestra.referencia,
-        modelo: muestra.modelo,
+        modelo: muestra.referencia,
         estado: muestra.estado,
         ubicacion: muestra.ubicacion?.nombre || "",
         tipo_ubicacion: muestra.ubicacion?.tipo || "",
@@ -166,7 +166,7 @@ export class ReporteService {
     return inventario.map((item) => ({
       muestraid: item.id,
       referencia: item.referencia,
-      modelo: item.modelo,
+      modelo: item.modelo || item.referencia || "",
       stock: item.stock,
     }));
   }
