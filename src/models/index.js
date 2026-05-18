@@ -222,7 +222,8 @@ Variacion.belongsTo(Cliente, { foreignKey: "clienteid", as: "cliente" });
 Variacion.belongsTo(Disenador, { foreignKey: "disenadorid", as: "disenador" });
 Variacion.belongsTo(Molderia, { foreignKey: "molderiaid", as: "molderia" });
 Variacion.belongsTo(Ubicacion, { foreignKey: "ubicacionid", as: "ubicacion" });
-Produccion.belongsTo(Muestra, { foreignKey: "muestraid", as: "muestra" });
+Produccion.belongsTo(Muestra, { foreignKey: "muestraid", as: "muestra", constraints: false });
+Produccion.belongsTo(Variacion, { foreignKey: "muestraid", as: "variacion", constraints: false });
 Produccion.belongsTo(Cliente, { foreignKey: "clienteid", as: "cliente" });
 MovimientoInventario.belongsTo(Muestra, {
   foreignKey: "muestraid",
@@ -256,7 +257,8 @@ Cliente.hasMany(Variacion, { foreignKey: "clienteid", as: "variaciones" });
 Disenador.hasMany(Variacion, { foreignKey: "disenadorid", as: "variaciones" });
 Molderia.hasMany(Variacion, { foreignKey: "molderiaid", as: "variaciones" });
 Ubicacion.hasMany(Variacion, { foreignKey: "ubicacionid", as: "variaciones" });
-Muestra.hasMany(Produccion, { foreignKey: "muestraid", as: "producciones" });
+Muestra.hasMany(Produccion, { foreignKey: "muestraid", as: "producciones", constraints: false });
+Variacion.hasMany(Produccion, { foreignKey: "muestraid", as: "producciones", constraints: false });
 Cliente.hasMany(Produccion, { foreignKey: "clienteid", as: "producciones" });
 Muestra.hasMany(MovimientoInventario, {
   foreignKey: "muestraid",

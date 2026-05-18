@@ -1,4 +1,4 @@
-import { Cliente, Muestra } from "../models/index.js";
+import { Cliente, Muestra, Variacion } from "../models/index.js";
 import { ProduccionRepository } from "../repositories/produccion.repository.js";
 
 class HttpError extends Error {
@@ -70,11 +70,11 @@ export class ProduccionService {
   }
 
   async validateMuestraExists(muestraid) {
-    const muestra = await Muestra.findByPk(muestraid);
-    if (!muestra) {
-      throw new HttpError(404, `Muestra con id ${muestraid} no existe`);
+    const owner = (await Muestra.findByPk(muestraid)) ?? (await Variacion.findByPk(muestraid));
+    if (!owner) {
+      throw new HttpError(404, `Muestra o variación con id ${muestraid} no existe`);
     }
-    return muestra;
+    return owner;
   }
 
   async validateClienteExists(clienteid) {
@@ -86,10 +86,10 @@ export class ProduccionService {
   }
 
   validateMuestraAprobada(muestra) {
-    if (muestra.estado !== "aprobada") {
+    if (muestra.estado !== "aprobada" && muestra.estado !== "variacion") {
       throw new HttpError(
         400,
-        `No se puede registrar produccion: la muestra ${muestra.id} no esta aprobada`
+        `No se puede registrar produccion: la muestra/variación ${muestra.id} no esta aprobada (estado actual: ${muestra.estado})`
       );
     }
   }

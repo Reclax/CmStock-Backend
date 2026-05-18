@@ -389,7 +389,7 @@ export class MuestraService {
         };
       }
 
-      grouped[key].modelos.add(item.modelo);
+      grouped[key].modelos.add(item.modelo || item.referencia || "");
     }
 
     return Object.values(grouped).map((entry) => ({

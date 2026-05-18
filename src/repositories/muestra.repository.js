@@ -42,7 +42,7 @@ export class MuestraRepository {
     }
 
     if (filters.modelo) {
-      where.modelo = { [Op.iLike]: `%${filters.modelo}%` };
+      where.referencia = { [Op.iLike]: `%${filters.modelo}%` };
     }
 
     if (filters.segmento) {
@@ -270,7 +270,7 @@ export class MuestraRepository {
         {
           model: Muestra,
           as: "muestra",
-          attributes: ["id", "referencia", "modelo", "segmento"],
+          attributes: ["id", "referencia", "segmento"],
         },
       ],
       order: [["fechaproduccion", "DESC"]],
@@ -279,7 +279,7 @@ export class MuestraRepository {
 
   async getModelosPorSegmentoRegion() {
     return Muestra.findAll({
-      attributes: ["segmento", "modelo"],
+      attributes: ["segmento", "referencia"],
       include: [
         {
           model: Cliente,
@@ -288,7 +288,7 @@ export class MuestraRepository {
           required: false,
         },
       ],
-      order: [["segmento", "ASC"], ["modelo", "ASC"]],
+      order: [["segmento", "ASC"], ["referencia", "ASC"]],
     });
   }
 }

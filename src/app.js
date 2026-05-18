@@ -38,12 +38,17 @@ const staticAllowedOrigins = [
   "http://127.0.0.1:3001",
   "https://rasheeda-nonexplorative-thickly.ngrok-free.dev",
   "https://09nk4wg0-5173.use2.devtunnels.ms",
+  "https://boxing-bare-course-six.trycloudflare.com"
 ];
 
 const devtunnelOriginRegex = /^https:\/\/[a-z0-9-]+-(3000|5173)\.use2\.devtunnels\.ms$/i;
+const cloudflareOriginRegex = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/i;
 
 const isAllowedOrigin = (origin) =>
-  !origin || staticAllowedOrigins.includes(origin) || devtunnelOriginRegex.test(origin);
+  !origin || 
+  staticAllowedOrigins.includes(origin) || 
+  devtunnelOriginRegex.test(origin) ||
+  cloudflareOriginRegex.test(origin);
 
 // Configuración de CORS
 const corsOptions = {
@@ -174,6 +179,7 @@ export const startServer = async () => {
     const queryInterface = sequelize.getQueryInterface();
     const fotosTableExists = await queryInterface.tableExists("fotos");
     const presentacionesTableExists = await queryInterface.tableExists("presentaciones");
+    const produccionesTableExists = await queryInterface.tableExists("producciones");
 
     // Eliminar FK constraints ANTES de sincronizar, para que Sequelize no las recree
     if (fotosTableExists) {
@@ -196,6 +202,17 @@ export const startServer = async () => {
         console.log("FK constraint removida de presentaciones.muestraid (preemptive)");
       } catch (fkError) {
         console.warn("No se pudo remover FK constraint de presentaciones:", fkError.message);
+      }
+    }
+
+    if (produccionesTableExists) {
+      try {
+        await sequelize.query(
+          `ALTER TABLE producciones DROP CONSTRAINT IF EXISTS "producciones_muestraid_fkey";`
+        );
+        console.log("FK constraint removida de producciones.muestraid (preemptive)");
+      } catch (fkError) {
+        console.warn("No se pudo remover FK constraint de producciones:", fkError.message);
       }
     }
 

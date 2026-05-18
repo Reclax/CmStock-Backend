@@ -1,4 +1,4 @@
-import { Cliente, Muestra, Variacion } from "../models/index.js";
+import { Cliente, Muestra, Produccion, Variacion } from "../models/index.js";
 import { PresentacionRepository } from "../repositories/presentacion.repository.js";
 
 const RESULTADOS_VALIDOS = new Set([
@@ -43,7 +43,9 @@ export class PresentacionService {
     payload.resultado = this.validateResultado(payload.resultado);
     await this.validateMuestraExists(payload.muestraid);
     await this.validateClienteExists(payload.clienteid);
-    return this.repository.create(payload);
+    const presentacion = await this.repository.create(payload);
+    await this.syncProduccion(presentacion, payload);
+    return presentacion;
   }
 
   async update(id, payload) {
@@ -64,7 +66,9 @@ export class PresentacionService {
       await this.validateClienteExists(payload.clienteid);
     }
 
-    return this.repository.update(presentacion, payload);
+    const updated = await this.repository.update(presentacion, payload);
+    await this.syncProduccion(updated, payload);
+    return updated;
   }
 
   async remove(id) {
@@ -127,6 +131,82 @@ export class PresentacionService {
       throw new HttpError(404, `Cliente con id ${clienteid} no existe`);
     }
     return cliente;
+  }
+
+  shouldSyncProduccion(payload) {
+    return (
+      payload.resultado === "aprobada" &&
+      Boolean(payload.derivoproduccion) &&
+      Number(payload.paresaprobados) > 0
+    );
+  }
+
+  buildMesFromFecha(fecha) {
+    const fechaDate = new Date(fecha || new Date());
+    if (Number.isNaN(fechaDate.getTime())) {
+      return new Date().toLocaleString("es-ES", { month: "long" });
+    }
+
+    return fechaDate.toLocaleString("es-ES", { month: "long" });
+  }
+
+  async syncProduccion(presentacion, payload) {
+    const data = {
+      ...(typeof presentacion?.toJSON === "function" ? presentacion.toJSON() : presentacion),
+      ...payload,
+    };
+
+    const debeSincronizar = this.shouldSyncProduccion(data);
+
+    if (!debeSincronizar) {
+      const existente = await Produccion.findOne({
+        where: {
+          muestraid: data.muestraid,
+          clienteid: data.clienteid,
+        },
+      });
+
+      if (existente) {
+        await existente.destroy();
+      }
+
+      return;
+    }
+
+    const owner = (await Muestra.findByPk(data.muestraid)) ?? (await Variacion.findByPk(data.muestraid));
+    if (!owner) {
+      throw new HttpError(404, `Muestra o variación con id ${data.muestraid} no existe`);
+    }
+
+    const isVariation = Boolean(owner.muestraOriginalId);
+    const estadoEsperado = isVariation ? "variacion" : "aprobada";
+    if (String(owner.estado || "").trim().toLowerCase() !== estadoEsperado) {
+      await owner.update({ estado: estadoEsperado });
+    }
+
+    const fechaProduccion = data.fecha || new Date();
+    const existing = await Produccion.findOne({
+      where: {
+        muestraid: data.muestraid,
+        clienteid: data.clienteid,
+      },
+    });
+
+    const productionPayload = {
+      muestraid: data.muestraid,
+      clienteid: data.clienteid,
+      ordennumero: owner.referencia || String(data.muestraid),
+      paresproducidos: Number(data.paresaprobados) || 0,
+      fechaproduccion: fechaProduccion,
+      mes: this.buildMesFromFecha(fechaProduccion),
+    };
+
+    if (existing) {
+      await existing.update(productionPayload);
+      return;
+    }
+
+    await Produccion.create(productionPayload);
   }
 }
 
